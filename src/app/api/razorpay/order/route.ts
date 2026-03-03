@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import Razorpay from 'razorpay'
 
 export async function POST(request: Request) {
-    // Lazy initialization to avoid build-time errors when ENV variables are missing
+    // Lazy initialization to avoid build-time errors when ENV variables are missing (v2)
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
         console.error('Razorpay credentials missing')
         return NextResponse.json({ error: 'Razorpay credentials not configured' }, { status: 500 })
