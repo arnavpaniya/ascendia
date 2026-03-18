@@ -5,7 +5,11 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { GlowCard } from "@/components/ui/GlowCard";
 import { Pill } from "@/components/ui/Pill";
 import { StaggerList } from "@/components/ui/StaggerList";
-import { Users, TrendingUp, Award, DollarSign } from "lucide-react";
+import { Users, TrendingUp, Award, BookOpen, Clock, Edit, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 // Dummy Data
 const revenueData = [
@@ -38,6 +42,65 @@ const alerts = [
 ];
 
 export default function AdminDashboard() {
+  const [courses, setCourses] = useState<any[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [formData, setFormData] = useState({ id: '', title: '', description: '', video_url: '' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  const fetchData = async () => {
+    // Fetch courses
+    const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
+    if (cData) setCourses(cData);
+    
+    // Count exact total users
+    const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
+    setTotalUsers(count || 0);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveCourse = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (isEditing && formData.id) {
+      await supabase.from('courses').update({ 
+        title: formData.title, 
+        description: formData.description, 
+        video_url: formData.video_url 
+      }).eq('id', formData.id);
+    } else {
+      await supabase.from('courses').insert([{ 
+        title: formData.title, 
+        description: formData.description, 
+        video_url: formData.video_url, 
+        created_by: user?.id 
+      }]);
+    }
+    setFormData({ id: '', title: '', description: '', video_url: '' });
+    setIsEditing(false);
+    fetchData();
+  };
+
+  const editCourse = (c: any) => {
+    setFormData({ id: c.id, title: c.title, description: c.description, video_url: c.video_url });
+    setIsEditing(true);
+  };
+
+  const deleteCourse = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this course?")) return;
+    setLoading(true);
+    await supabase.from('courses').delete().eq('id', id);
+    fetchData();
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex justify-between items-end">
@@ -50,8 +113,8 @@ export default function AdminDashboard() {
       {/* KPIs */}
       <StaggerList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Revenue", val: "$124,500", icon: DollarSign, color: "#6c63ff" },
-          { label: "Active Users", val: "48,231", icon: Users, color: "#38bdf8" },
+          { label: "Total Courses", val: loading ? "..." : courses.length.toString(), icon: BookOpen, color: "#6c63ff" },
+          { label: "Active Users", val: loading ? "..." : totalUsers.toString(), icon: Users, color: "#38bdf8" },
           { label: "Completion Rate", val: "68%", icon: Award, color: "#f59e0b" },
           { label: "Growth Trend", val: "+24%", icon: TrendingUp, color: "#10b981" },
         ].map((kpi, i) => (
@@ -80,7 +143,7 @@ export default function AdminDashboard() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="month" stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                <YAxis stroke="#ffffff40" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: number) => `$${value/1000}k`} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: "#0f172ab0", backdropFilter: "blur(10px)", borderColor: "#ffffff10", borderRadius: "12px" }}
                   itemStyle={{ color: "#fff" }}
@@ -132,6 +195,55 @@ export default function AdminDashboard() {
                 {c.name}
               </div>
             ))}
+          </div>
+        </GlowCard>
+      </div>
+
+      {/* CRUD Course Management */}
+      <div className="grid grid-cols-1 gap-8 mt-8">
+        <GlowCard className="p-6 flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-xl font-syne font-bold">Course Management</h2>
+          </div>
+          <div className="flex flex-col lg:flex-row gap-8">
+              <div className="lg:w-1/3 p-5 bg-white/5 rounded-2xl border border-white/10 shrink-0 h-fit">
+                 <h3 className="font-semibold mb-4">{isEditing ? "Edit Course" : "Add New Course"}</h3>
+                 <form onSubmit={saveCourse} className="space-y-4">
+                    <Input placeholder="Course Title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required className="bg-white/5 border-white/10" />
+                    <Input placeholder="Description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required className="bg-white/5 border-white/10" />
+                    <Input placeholder="Video URL (e.g. YouTube ID or link)" value={formData.video_url} onChange={e => setFormData({...formData, video_url: e.target.value})} required className="bg-white/5 border-white/10" />
+                    <Button type="submit" disabled={loading} className="w-full h-11">{isEditing ? "Update Course" : "Publish Course"}</Button>
+                    {isEditing && <Button type="button" variant="ghost" onClick={() => { setIsEditing(false); setFormData({ id: '', title: '', description: '', video_url: '' }); }} className="w-full text-white/50">Cancel</Button>}
+                 </form>
+              </div>
+              <div className="lg:w-2/3 overflow-x-auto min-h-[300px]">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 text-white/50 text-sm">
+                      <th className="pb-3 font-medium">Course Title</th>
+                      <th className="pb-3 font-medium line-clamp-1">Video Source</th>
+                      <th className="pb-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {courses.map(course => (
+                      <tr key={course.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                         <td className="py-4 font-medium">{course.title}</td>
+                         <td className="py-4 text-white/70 text-sm truncate max-w-[200px] block">{course.video_url}</td>
+                         <td className="py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white/50 hover:text-white" onClick={() => editCourse(course)}><Edit className="w-4 h-4" /></Button>
+                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500/50 hover:text-red-500 hover:bg-red-500/10" onClick={() => deleteCourse(course.id)}><Trash2 className="w-4 h-4" /></Button>
+                            </div>
+                         </td>
+                      </tr>
+                    ))}
+                    {courses.length === 0 && !loading && (
+                      <tr><td colSpan={3} className="py-8 text-center text-white/50 text-sm">No courses available. Add one to get started.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
           </div>
         </GlowCard>
       </div>

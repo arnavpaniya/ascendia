@@ -22,7 +22,7 @@ export default function LoginPage() {
         setLoading(true)
         setError(null)
         
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         })
@@ -34,7 +34,14 @@ export default function LoginPage() {
             return
         }
 
-        router.push('/dashboard')
+        if (data.user) {
+            const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single();
+            if (userData && userData.role === 'admin') {
+                router.push('/dashboard/admin')
+            } else {
+                router.push('/dashboard')
+            }
+        }
         router.refresh()
     }
 

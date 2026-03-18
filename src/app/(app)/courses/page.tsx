@@ -6,40 +6,44 @@ import { Search } from "lucide-react";
 import { TiltCard } from "@/components/ui/TiltCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StaggerList } from "@/components/ui/StaggerList";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 const filters = ["All", "In Progress", "Completed", "Recommended"];
-const courses = [
-  ...Array(8).fill(null).map((_, i) => ({
-    id: i,
-    title: `Advanced Module ${i + 1}`,
-    instructor: "Dr. Exemplar",
-    progress: Math.floor(Math.random() * 100),
-    image: `https://images.unsplash.com/photo-${1500000000000 + i}?w=500&q=80`
-  }))
-];
 
 export default function CoursesPage() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [isSearching, setIsSearching] = useState(false);
-  const [loadedCourses, setLoadedCourses] = useState<any[]>(courses);
+  const [loadedCourses, setLoadedCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/courses`)
-      .then(res => res.json())
-      .then(data => {
-         // Format the backend data to match our UI props if data exists
-         if (data && data.length > 0) {
-            const formatted = data.map((c: any) => ({
-                id: c._id || c.title,
-                title: c.title,
-                instructor: c.createdBy || "Dr. Exemplar",
-                progress: Math.floor(Math.random() * 100),
-                image: c.videoUrl || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80`
-            }));
-            setLoadedCourses(formatted);
-         }
-      })
-      .catch(err => console.error("Backend unreachable, using fallback UI courses", err));
+    const fetchCourses = async () => {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      
+      const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
+      
+      let pData: any[] = [];
+      if (authData?.user) {
+        const { data } = await supabase.from('course_progress').select('*').eq('user_id', authData.user.id);
+        if (data) pData = data;
+      }
+      const completedIds = new Set(pData.filter(p => p.completed).map(p => p.course_id));
+
+      if (cData && cData.length > 0) {
+        const formatted = cData.map((c, idx) => ({
+            id: c.id,
+            title: c.title,
+            instructor: "Platform Expert",
+            progress: completedIds.has(c.id) ? 100 : 0,
+            image: `https://images.unsplash.com/photo-${1611974789855 + idx}?w=500&q=80`
+        }));
+        setLoadedCourses(formatted);
+      }
+      setLoading(false);
+    };
+    fetchCourses();
   }, []);
 
   return (
@@ -89,23 +93,28 @@ export default function CoursesPage() {
 
       <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {loadedCourses.map((course) => (
-          <TiltCard key={course.id} className="cursor-pointer">
-            <div className="h-48 relative rounded-t-2xl overflow-hidden bg-[#1e293b]">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#6c63ff]/20 to-[#f59e0b]/20 mix-blend-overlay" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] to-transparent" />
-              <div className="absolute top-4 right-4 w-8 h-8 rounded-full border-2 border-[#0f172a] overflow-hidden">
-                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${course.id}`} alt="Instructor" className="w-full h-full bg-[#f8fafc]" />
+          <Link href={`/courses/${course.id}`} key={course.id} className="block w-full focus:outline-none">
+            <TiltCard className="cursor-pointer h-full transition-all hover:ring-2 hover:ring-[#6c63ff]/50">
+              <div className="h-48 relative rounded-t-2xl overflow-hidden bg-[#1e293b]">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#6c63ff]/20 to-[#f59e0b]/20 mix-blend-overlay" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] to-transparent" />
+                <img src={course.image} alt="Instructor" className="absolute inset-0 w-full h-full object-cover mix-blend-luminosity opacity-40" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <ProgressBar progress={course.progress} />
+                </div>
               </div>
-              <div className="absolute bottom-4 left-4 right-4">
-                <ProgressBar progress={course.progress} />
+              <div className="p-5">
+                <h3 className="font-semibold text-lg mb-1">{course.title}</h3>
+                <p className="text-sm text-white/50">{course.instructor}</p>
               </div>
-            </div>
-            <div className="p-5">
-              <h3 className="font-semibold text-lg mb-1">{course.title}</h3>
-              <p className="text-sm text-white/50">{course.instructor}</p>
-            </div>
-          </TiltCard>
+            </TiltCard>
+          </Link>
         ))}
+        {loadedCourses.length === 0 && !loading && (
+           <div className="col-span-full border border-dashed border-white/10 rounded-3xl p-12 text-center text-white/50 bg-white/5">
+             No active curriculum available right now!
+           </div>
+        )}
       </StaggerList>
     </div>
   );

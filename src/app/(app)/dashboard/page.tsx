@@ -11,39 +11,61 @@ import { BookOpen, Target, Clock, Zap } from "lucide-react";
 import { OrbField } from "@/components/three/OrbField";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
-
-const stats = [
-  { label: "Current XP", value: 12450, icon: Zap, color: "#f59e0b" },
-  { label: "Lessons Completed", value: 48, icon: BookOpen, color: "#6c63ff" },
-  { label: "Study Hours", value: 124, icon: Clock, color: "#38bdf8" },
-  { label: "Daily Streak", value: 14, icon: Target, color: "#ec4899" },
-];
-
-const courses = [
-  { title: "Advanced Quantum Mechanics", progress: 78, instructor: "Dr. Feynman", image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=500&q=80" },
-  { title: "Neural Networks Engineering", progress: 45, instructor: "Prof. Hinton", image: "https://images.unsplash.com/photo-1555255707-c07966088b7b?w=500&q=80" },
-  { title: "Macroeconomics Principles", progress: 92, instructor: "Dr. Keynes", image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500&q=80" },
-];
+import Link from "next/link";
 
 const activities = [
-  { title: "Completed Module 4 Assessment", time: "2 hours ago" },
   { title: "Earned 'Fast Learner' Badge", time: "5 hours ago" },
-  { title: "Started Neural Networks", time: "1 day ago" },
+  { title: "Started Platform Exploration", time: "1 day ago" },
 ];
 
 export default function StudentDashboard() {
   const { ref: chartRef, isInView: chartInView } = useIntersectionReveal();
   const { ref: timelineRef, isInView: timelineInView } = useIntersectionReveal();
+  
   const [userName, setUserName] = useState("Scholar");
+  const [totalCourses, setTotalCourses] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-         setUserName(data.user.user_metadata?.full_name?.split(' ')[0] || data.user.email?.split('@')[0] || "Scholar");
+    const fetchDashboardData = async () => {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) return;
+      
+      const user = authData.user;
+      setUserName(user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || "Scholar");
+
+      const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
+      const { data: pData } = await supabase.from('course_progress').select('*').eq('user_id', user.id);
+      
+      const total = cData?.length || 0;
+      const completedIds = new Set(pData?.filter(p => p.completed).map(p => p.course_id));
+      
+      setTotalCourses(total);
+      setCompletedCount(completedIds.size);
+
+      if (cData) {
+         setAvailableCourses(cData.map((c, i) => ({
+            id: c.id,
+            title: c.title,
+            instructor: "Platform Expert",
+            progress: completedIds.has(c.id) ? 100 : 0,
+            image: `https://images.unsplash.com/photo-${1611974789855 + i}?w=500&q=80`
+         })));
       }
-    });
+    };
+    fetchDashboardData();
   }, []);
+
+  const progressPercent = totalCourses > 0 ? Math.round((completedCount / totalCourses) * 100) : 0;
+
+  const stats = [
+    { label: "Completion Rate", value: progressPercent, icon: Zap, color: "#f59e0b", suffix: "%" },
+    { label: "Courses Conquered", value: completedCount, icon: BookOpen, color: "#6c63ff", suffix: "" },
+    { label: "Study Hours", value: 124, icon: Clock, color: "#38bdf8", suffix: "" },
+    { label: "Daily Streak", value: 14, icon: Target, color: "#ec4899", suffix: "" },
+  ];
 
   return (
     <div className="relative min-h-screen">
@@ -56,14 +78,14 @@ export default function StudentDashboard() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
             <div>
               <h1 className="text-3xl font-syne font-bold mb-2">Welcome back, {userName}</h1>
-              <p className="text-white/60">Level 42 Scholar • Top 5% this week</p>
+              <p className="text-white/60">Level 42 Scholar • Keep up the great momentum</p>
             </div>
             <div className="w-full md:w-1/3">
               <div className="flex justify-between text-sm mb-2 font-medium">
-                <span className="text-[#f59e0b]">Level 42</span>
-                <span className="text-white/60"><AnimatedCounter to={12450} /> / 15000 XP</span>
+                <span className="text-[#f59e0b]">Overall Progress</span>
+                <span className="text-white/60"><AnimatedCounter to={progressPercent} />% mastery</span>
               </div>
-              <ProgressBar progress={83} />
+              <ProgressBar progress={progressPercent} />
             </div>
           </div>
         </div>
@@ -87,7 +109,10 @@ export default function StudentDashboard() {
               </div>
               <div className="flex flex-col">
                 <span className="text-white/60 text-sm mb-1">{stat.label}</span>
-                <span className="text-3xl font-syne font-bold"><AnimatedCounter to={stat.value} /></span>
+                <div className="text-3xl font-syne font-bold flex items-end gap-1">
+                  <AnimatedCounter to={stat.value} />
+                  {stat.suffix && <span className="text-xl pb-0.5">{stat.suffix}</span>}
+                </div>
               </div>
             </motion.div>
           ))}
@@ -101,21 +126,28 @@ export default function StudentDashboard() {
                 Continue Learning
               </h2>
               <div className="flex overflow-x-auto pb-6 -mx-2 px-2 gap-6 snap-x">
-                {courses.map((course, i) => (
-                  <TiltCard key={i} className="min-w-[280px] sm:min-w-[320px] snap-center shrink-0">
-                    <div className="h-40 relative rounded-t-2xl overflow-hidden">
-                      <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] to-transparent" />
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <ProgressBar progress={course.progress} />
+                {availableCourses.map((course) => (
+                  <Link href={`/courses/${course.id}`} key={course.id} className="block shrink-0 snap-center focus:outline-none">
+                    <TiltCard className="min-w-[280px] sm:min-w-[320px] transition-all hover:ring-2 hover:ring-[#6c63ff]/50">
+                      <div className="h-40 relative rounded-t-2xl overflow-hidden">
+                        <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] to-transparent" />
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <ProgressBar progress={course.progress} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="p-5">
-                      <h3 className="font-semibold text-lg mb-1">{course.title}</h3>
-                      <p className="text-sm text-white/50">{course.instructor}</p>
-                    </div>
-                  </TiltCard>
+                      <div className="p-5">
+                        <h3 className="font-semibold text-lg mb-1 truncate">{course.title}</h3>
+                        <p className="text-sm text-white/50">{course.instructor}</p>
+                      </div>
+                    </TiltCard>
+                  </Link>
                 ))}
+                {availableCourses.length === 0 && (
+                  <div className="w-full p-8 text-center text-white/50 border border-white/5 rounded-2xl bg-[#0f172a]/40 backdrop-blur-md">
+                    No active courses found. Navigate to Courses via the sidebar to access the curriculum.
+                  </div>
+                )}
               </div>
             </section>
 
