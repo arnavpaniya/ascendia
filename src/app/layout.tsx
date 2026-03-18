@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Syne, DM_Sans } from "next/font/google";
+import { StoreProvider } from "@/providers/StoreProvider";
 import "./globals.css";
 
 const syne = Syne({
@@ -24,8 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${syne.variable} ${dmSans.variable} font-dm-sans antialiased`}>
-        {children}
+      <body className={`${syne.variable} ${dmSans.variable} font-dm-sans antialiased text-white bg-[#07080f]`}>
+        <StoreProvider>
+          {children}
+        </StoreProvider>
       </body>
     </html>
   );

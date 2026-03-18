@@ -7,65 +7,70 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { StaggerList } from "@/components/ui/StaggerList";
 import { useIntersectionReveal } from "@/hooks/useIntersectionReveal";
-import { BookOpen, Target, Clock, Zap } from "lucide-react";
+import { BookOpen, Target, Clock, Zap, Sparkles, Flame, Trophy } from "lucide-react";
 import { OrbField } from "@/components/three/OrbField";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useAuthStore } from "@/stores/auth.store";
+import { useQuery } from "@tanstack/react-query";
+import { calculateLevel } from "@/utils/xp.utils";
 import Link from "next/link";
-
-const activities = [
-  { title: "Earned 'Fast Learner' Badge", time: "5 hours ago" },
-  { title: "Started Platform Exploration", time: "1 day ago" },
-];
+import { ActivityHeatmap } from "@/components/student/ActivityHeatmap";
 
 export default function StudentDashboard() {
-  const { ref: chartRef, isInView: chartInView } = useIntersectionReveal();
   const { ref: timelineRef, isInView: timelineInView } = useIntersectionReveal();
   
-  const [userName, setUserName] = useState("Scholar");
-  const [totalCourses, setTotalCourses] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
-  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
+  const { profile } = useAuthStore();
+  const supabase = createClient();
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      const supabase = createClient();
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) return;
+  const { data, isLoading } = useQuery({
+    queryKey: ['student-dashboard-stats', profile?.id],
+    enabled: !!profile?.id,
+    queryFn: async () => {
+      // Fetch all published courses
+      const { data: courses } = await supabase.from('courses').select('*').eq('is_published', true).order('created_at', { ascending: false });
       
-      const user = authData.user;
-      setUserName("Valiant Scholar");
+      // Fetch user enrollments + progress
+      const { data: enrollments } = await supabase.from('enrollments').select('*').eq('user_id', profile!.id);
+      const { data: progress } = await supabase.from('progress').select('*').eq('user_id', profile!.id);
+      const { data: lessons } = await supabase.from('lessons').select('id, course_id');
 
-      const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
-      const { data: pData } = await supabase.from('course_progress').select('*').eq('user_id', user.id);
-      
-      const total = cData?.length || 0;
-      const completedIds = new Set(pData?.filter(p => p.completed).map(p => p.course_id));
-      
-      setTotalCourses(total);
-      setCompletedCount(completedIds.size);
+      // Aggregate data
+      const enrolledCourseIds = new Set(enrollments?.map(e => e.course_id));
+      const completedLessonIds = new Set(progress?.filter(p => p.completed).map(p => p.lesson_id));
 
-      if (cData) {
-         setAvailableCourses(cData.map((c, i) => ({
-            id: c.id,
-            title: c.title,
-            instructor: "Platform Expert",
-            progress: completedIds.has(c.id) ? 100 : 0,
-            image: `https://images.unsplash.com/photo-${1611974789855 + i}?w=500&q=80`
-         })));
-      }
-    };
-    fetchDashboardData();
-  }, []);
+      const availableCourses = (courses || []).map(course => {
+        const courseLessons = lessons?.filter(l => l.course_id === course.id) || [];
+        const completedCourseLessons = courseLessons.filter(l => completedLessonIds.has(l.id));
+        const progressPercent = courseLessons.length > 0 ? Math.round((completedCourseLessons.length / courseLessons.length) * 100) : 0;
+        
+        return {
+          id: course.id,
+          title: course.title,
+          category: course.category,
+          progress: progressPercent,
+          enrolled: enrolledCourseIds.has(course.id),
+          thumbnail: course.thumbnail_url || `https://images.unsplash.com/photo-1611974789855?w=500&q=80`
+        };
+      });
 
-  const progressPercent = totalCourses > 0 ? Math.round((completedCount / totalCourses) * 100) : 0;
+      return {
+        completedLessons: completedLessonIds.size,
+        totalEnrolled: enrollments?.length || 0,
+        courses: availableCourses
+      };
+    }
+  });
+
+  const levelData = calculateLevel(profile?.xp || 0);
 
   const stats = [
-    { label: "Completion Rate", value: progressPercent, icon: Zap, color: "#f59e0b", suffix: "%" },
-    { label: "Courses Conquered", value: completedCount, icon: BookOpen, color: "#6c63ff", suffix: "" },
-    { label: "Study Hours", value: 124, icon: Clock, color: "#38bdf8", suffix: "" },
-    { label: "Daily Streak", value: 14, icon: Target, color: "#ec4899", suffix: "" },
+    { label: "Enrolled Courses", value: data?.totalEnrolled || 0, icon: BookOpen, color: "#6c63ff" },
+    { label: "Completed Lessons", value: data?.completedLessons || 0, icon: Zap, color: "#34d399" },
+    { label: "Study Hours This Week", value: 12, icon: Clock, color: "#38bdf8" },
+    { label: "Current Rank", value: levelData.currentLevel, icon: Trophy, color: "#f59e0b" },
   ];
+
+  const firstName = profile?.full_name?.split(' ')[0] || "Valiant Scholar";
 
   return (
     <div className="relative min-h-screen">
@@ -73,19 +78,42 @@ export default function StudentDashboard() {
       
       <div className="relative z-10 space-y-8 pb-12">
         {/* Header / XP Banner */}
-        <div className="bg-[#0f172a]/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#6c63ff]/20 to-transparent pointer-events-none" />
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
-            <div>
-              <h1 className="text-3xl font-syne font-bold mb-2">Welcome back, {userName}</h1>
-              <p className="text-white/60">Level 42 Scholar • Keep up the great momentum</p>
-            </div>
-            <div className="w-full md:w-1/3">
-              <div className="flex justify-between text-sm mb-2 font-medium">
-                <span className="text-[#f59e0b]">Overall Progress</span>
-                <span className="text-white/60"><AnimatedCounter to={progressPercent} />% mastery</span>
+        <div className="glass rounded-[2rem] p-8 md:p-10 relative overflow-hidden group border border-white/10">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#7c6df0]/10 via-[#38bdf8]/5 to-transparent pointer-events-none" />
+          
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#7c6df0] to-[#38bdf8] p-1 flex-shrink-0">
+                <div className="w-full h-full rounded-full bg-[#0f1018] overflow-hidden">
+                  <img src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.id || 'Felix'}&backgroundColor=transparent`} alt="Avatar" className="w-full h-full object-cover" />
+                </div>
               </div>
-              <ProgressBar progress={progressPercent} />
+              <div>
+                <motion.h1 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
+                  className="text-3xl md:text-4xl font-syne font-bold mb-2 tracking-tight"
+                >
+                  Welcome back, {firstName} 👋
+                </motion.h1>
+                <div className="flex items-center gap-3 text-sm font-medium">
+                  <span className="text-[#f59e0b] bg-[#f59e0b]/10 px-3 py-1 rounded-full border border-[#f59e0b]/20 flex items-center gap-1.5">
+                    <Trophy className="w-4 h-4" /> Level {levelData.currentLevel} — {levelData.title}
+                  </span>
+                  <span className="text-[#f472b6] bg-[#f472b6]/10 px-3 py-1 rounded-full flex items-center gap-1">
+                    <Flame className="w-4 h-4" /> {profile?.streak_days || 0} Day Streak
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="w-full md:w-1/3 bg-[#0f1018]/50 p-4 rounded-2xl border border-white/5 relative">
+              <div className="flex justify-between text-sm mb-3 font-medium">
+                <span className="text-white/80">{profile?.xp || 0} XP</span>
+                <span className="text-white/60">
+                  {levelData.nextLevelXp ? `${levelData.nextLevelXp - (profile?.xp || 0)} XP until 🏆` : "Max Level"}
+                </span>
+              </div>
+              <ProgressBar progress={levelData.progressPercent} height="h-3" />
             </div>
           </div>
         </div>
@@ -95,24 +123,18 @@ export default function StudentDashboard() {
           {stats.map((stat, i) => (
             <motion.div
               key={i}
-              whileHover={{ y: -4, boxShadow: "0 10px 40px -10px rgba(255,255,255,0.1)" }}
-              className="bg-[#0f172a]/60 backdrop-blur-lg border border-white/5 rounded-2xl p-6 relative overflow-hidden group"
+              whileHover={{ y: -4, scale: 1.02 }}
+              className="glass glass-hover rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between h-36"
             >
-              <div 
-                className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none mix-blend-screen"
-                style={{ background: `radial-gradient(circle at 50% 0%, ${stat.color}, transparent 70%)` }}
-              />
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-3 rounded-lg bg-white/5 text-white">
-                  <stat.icon className="w-6 h-6" style={{ color: stat.color }} />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+              <div className="flex justify-between items-start">
+                <span className="text-white/60 text-sm font-medium">{stat.label}</span>
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-white/10 to-white/0 border border-white/10">
+                  <stat.icon className="w-5 h-5 flex-shrink-0" style={{ color: stat.color }} />
                 </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-white/60 text-sm mb-1">{stat.label}</span>
-                <div className="text-3xl font-syne font-bold flex items-end gap-1">
-                  <AnimatedCounter to={stat.value} />
-                  {stat.suffix && <span className="text-xl pb-0.5">{stat.suffix}</span>}
-                </div>
+              <div className="text-4xl font-syne font-bold tracking-tight mt-auto">
+                <AnimatedCounter to={stat.value} />
               </div>
             </motion.div>
           ))}
@@ -122,64 +144,98 @@ export default function StudentDashboard() {
           {/* Main Column */}
           <div className="lg:col-span-2 space-y-8">
             <section>
-              <h2 className="text-xl font-syne font-bold mb-4 flex items-center gap-2">
-                Continue Learning
-              </h2>
-              <div className="flex overflow-x-auto pb-6 -mx-2 px-2 gap-6 snap-x">
-                {availableCourses.map((course) => (
-                  <Link href={`/courses/${course.id}`} key={course.id} className="block shrink-0 snap-center focus:outline-none">
-                    <TiltCard className="min-w-[280px] sm:min-w-[320px] transition-all hover:ring-2 hover:ring-[#6c63ff]/50">
-                      <div className="h-40 relative rounded-t-2xl overflow-hidden">
-                        <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] to-transparent" />
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <ProgressBar progress={course.progress} />
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <h3 className="font-semibold text-lg mb-1 truncate">{course.title}</h3>
-                        <p className="text-sm text-white/50">{course.instructor}</p>
-                      </div>
-                    </TiltCard>
-                  </Link>
-                ))}
-                {availableCourses.length === 0 && (
-                  <div className="w-full p-8 text-center text-white/50 border border-white/5 rounded-2xl bg-[#0f172a]/40 backdrop-blur-md">
+              <div className="flex justify-between items-end mb-6">
+                <h2 className="text-2xl font-syne font-bold">Continue Learning</h2>
+                <Link href="/courses" className="text-sm font-medium text-[#7c6df0] hover:text-white transition-colors">
+                  See all courses &rarr;
+                </Link>
+              </div>
+              
+              <div className="flex overflow-x-auto pb-8 -mx-4 px-4 gap-6 snap-x hide-scrollbar">
+                {isLoading ? (
+                  [...Array(3)].map((_, i) => (
+                    <div key={i} className="min-w-[320px] h-[280px] glass rounded-[1.5rem] animate-pulse shrink-0" />
+                  ))
+                ) : data?.courses.length === 0 ? (
+                  <div className="w-full p-12 text-center text-white/50 border border-white/5 rounded-3xl glass">
                     No active courses found. Navigate to Courses via the sidebar to access the curriculum.
                   </div>
+                ) : (
+                  data?.courses.map((course) => (
+                    <Link href={`/courses/${course.id}`} key={course.id} className="block shrink-0 snap-center focus:outline-none group">
+                      <TiltCard className="min-w-[300px] sm:min-w-[340px] transition-all duration-300 border border-white/5 hover:border-[#7c6df0]/40 rounded-[1.5rem] overflow-hidden bg-[#0f1018]">
+                        <div className="h-44 relative bg-[#161820]">
+                          <img src={course.thumbnail} alt={course.title} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0f1018] via-[#0f1018]/20 to-transparent" />
+                          <div className="absolute top-4 left-4">
+                            <span className="text-[10px] uppercase tracking-wider font-bold bg-[#7c6df0]/80 backdrop-blur text-white px-2.5 py-1 rounded-lg">
+                              {course.category || "General"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-6 relative">
+                          <h3 className="font-syne font-bold text-xl mb-6 truncate leading-tight">{course.title}</h3>
+                          
+                          <div className="flex items-center justify-between mb-2 text-xs font-medium text-white/60">
+                            <span>{course.progress}% Completed</span>
+                            <span>{course.enrolled ? "Enrolled" : "Preview"}</span>
+                          </div>
+                          <ProgressBar progress={course.progress} height="h-2" />
+                          
+                          <div className="mt-6 flex justify-end">
+                            <motion.button 
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="bg-white text-black font-semibold text-sm px-6 py-2.5 rounded-full flex items-center gap-2 group-hover:bg-[#7c6df0] group-hover:text-white transition-colors"
+                            >
+                              Continue &rarr;
+                            </motion.button>
+                          </div>
+                        </div>
+                      </TiltCard>
+                    </Link>
+                  ))
                 )}
               </div>
             </section>
 
             {/* Configurable Mini Bar Chart */}
-            <GlowCard>
-              <h2 className="text-xl font-syne font-bold mb-6">Learning Activity</h2>
-              <div ref={chartRef as any} className="h-48 flex items-end justify-between gap-2 px-2">
-                {[40, 70, 45, 90, 65, 80, 50].map((val, i) => (
-                  <div key={i} className="w-full flex justify-center group relative cursor-pointer">
-                    <motion.div
-                      initial={{ scaleY: 0 }}
-                      animate={chartInView ? { scaleY: 1 } : { scaleY: 0 }}
-                      transition={{ duration: 0.8, delay: i * 0.1, ease: "easeOut" }}
-                      className="w-full max-w-12 bg-white/10 group-hover:bg-[#6c63ff] rounded-t-sm origin-bottom transition-colors"
-                      style={{ height: `${val}%` }}
-                    />
-                    <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-black px-2 py-1 rounded text-xs font-bold">
-                      {val}m
-                    </div>
-                  </div>
-                ))}
+            <GlowCard className="border border-white/5 bg-gradient-to-br from-[#161820]/80 to-[#0f1018]/80">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-syne font-bold">Weekly Activity Heatmap</h2>
+                <span className="text-xs font-mono text-white/40">LAST 30 DAYS</span>
               </div>
-              <div className="flex justify-between mt-4 text-xs text-white/50 px-2 font-medium">
-                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-              </div>
+              <ActivityHeatmap />
             </GlowCard>
           </div>
 
           {/* Sidebar Column */}
-          <div className="space-y-8">
-            <GlowCard className="h-full min-h-[400px]">
-              <h2 className="text-xl font-syne font-bold mb-6">Recent Activity</h2>
+          <div className="space-y-6">
+            
+            {/* AI Tutor Quick Access */}
+            <Link href="/courses">
+              <motion.div 
+                whileHover={{ y: -4, scale: 1.02 }}
+                className="w-full glass rounded-[1.5rem] p-6 relative overflow-hidden border border-white/10 group cursor-pointer mb-6"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#7c6df0]/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="flex items-start gap-4 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#7c6df0] to-[#f472b6] flex items-center justify-center shadow-[0_0_20px_rgba(124,109,240,0.3)]">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-syne font-bold text-lg leading-tight mb-1">AI Tutor Access</h3>
+                    <p className="text-xs text-white/60">Ask anything, anytime.</p>
+                  </div>
+                </div>
+                <div className="text-sm font-medium text-[#7c6df0] group-hover:text-white transition-colors flex items-center gap-2">
+                  Launch Aria AI Chat &rarr;
+                </div>
+              </motion.div>
+            </Link>
+
+            <GlowCard className="h-[400px]">
+              <h2 className="text-xl font-syne font-bold mb-6">Upcoming Schedule</h2>
               <div ref={timelineRef as any} className="relative pl-4 overflow-hidden h-full">
                 <svg className="absolute top-0 left-[-11px] h-full w-8 pointer-events-none" viewBox="0 0 8 400" preserveAspectRatio="none">
                   <motion.line
@@ -190,18 +246,26 @@ export default function StudentDashboard() {
                     transition={{ duration: 1.5, ease: "easeInOut" }}
                   />
                 </svg>
-                <div className="space-y-8">
-                  {activities.map((act, i) => (
+                <div className="space-y-6 mt-4">
+                  {[
+                    { title: "Live System Design", time: "Tomorrow, 2:00 PM", color: "#38bdf8" },
+                    { title: "Assignment Due: Hooks", time: "Friday, 11:59 PM", color: "#f59e0b" },
+                    { title: "React Mentorship", time: "Next Mon, 1:00 PM", color: "#7c6df0" },
+                  ].map((act, i) => (
                     <motion.div 
                       key={i}
                       initial={{ opacity: 0, x: 20 }}
                       animate={timelineInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                      transition={{ delay: i * 0.2 + 0.5, duration: 0.5 }}
+                      transition={{ delay: i * 0.2 + 0.3, duration: 0.5 }}
                       className="relative pl-6"
                     >
-                      <span className="absolute left-[-5.5px] top-1.5 w-3 h-3 rounded-full bg-[#6c63ff] border-[2px] border-[#0f172a]" />
-                      <p className="font-semibold text-sm mb-1">{act.title}</p>
-                      <p className="text-xs text-white/50">{act.time}</p>
+                      <span className="absolute left-[-5.5px] top-1.5 w-3 h-3 rounded-full border-[2px] border-[#0f1018] z-10" style={{ backgroundColor: act.color }} />
+                      <div className="bg-[#161820]/60 p-3 rounded-xl border border-white/5 shadow-inner">
+                        <p className="font-semibold text-sm mb-1">{act.title}</p>
+                        <p className="text-xs text-white/50 flex items-center gap-1.5">
+                          <Clock className="w-3 h-3" /> {act.time}
+                        </p>
+                      </div>
                     </motion.div>
                   ))}
                 </div>

@@ -1,57 +1,16 @@
--- Users Table
-CREATE TABLE users (
-  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  full_name TEXT,
-  email TEXT UNIQUE,
-  role TEXT DEFAULT 'student',
-  subscription_status TEXT DEFAULT 'inactive',
-  subscription_expiry TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- USERS (extends Supabase auth.users)
+create table public.users (
+  id           uuid primary key references auth.users(id) on delete cascade,
+  email        text unique not null,
+  full_name    text,
+  avatar_url   text,
+  role         text default 'student' check (role in ('student','admin')),
+  xp           integer default 0,
+  level        integer default 1,
+  streak_days  integer default 0,
+  last_active  timestamptz default now(),
+  created_at   timestamptz default now()
 );
-
--- Enable RLS on users
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
--- Tests Table
-CREATE TABLE tests (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  duration INTEGER NOT NULL, -- in minutes
-  scheduled_date TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Questions Table
-CREATE TABLE questions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  test_id UUID REFERENCES tests(id) ON DELETE CASCADE,
-  question TEXT NOT NULL,
-  option_a TEXT NOT NULL,
-  option_b TEXT NOT NULL,
-  option_c TEXT NOT NULL,
-  option_d TEXT NOT NULL,
-  correct_answer TEXT NOT NULL, -- 'a', 'b', 'c', 'd'
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Results Table
-CREATE TABLE results (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  test_id UUID REFERENCES tests(id) ON DELETE CASCADE,
-  score NUMERIC NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- RLS Policies
-CREATE POLICY "Users can view their own data" ON users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update their own data" ON users FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Anyone can view tests" ON tests FOR SELECT USING (true);
-CREATE POLICY "Anyone can view questions" ON questions FOR SELECT USING (true);
-
-CREATE POLICY "Users can view their own results" ON results FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own results" ON results FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Trigger to insert user into public.users on signup
 create or replace function public.handle_new_user()
@@ -68,31 +27,141 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- Courses Table
-CREATE TABLE courses (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  video_url TEXT,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- COURSES
+create table public.courses (
+  id            uuid primary key default gen_random_uuid(),
+  title         text not null,
+  description   text,
+  thumbnail_url text,
+  category      text,
+  difficulty    text default 'beginner' check (difficulty in ('beginner','intermediate','advanced')),
+  tags          text[],
+  is_published  boolean default false,
+  created_by    uuid references public.users(id) on delete set null,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now()
 );
 
-ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Anyone can view courses" ON courses FOR SELECT USING (true);
-CREATE POLICY "Admins can manage courses" ON courses FOR ALL USING (
-  exists (select 1 from users where users.id = auth.uid() and users.role = 'admin')
+-- LESSONS (courses have multiple lessons)
+create table public.lessons (
+  id           uuid primary key default gen_random_uuid(),
+  course_id    uuid references public.courses(id) on delete cascade,
+  title        text not null,
+  description  text,
+  video_url    text,
+  content_md   text,          -- rich markdown content
+  duration_sec integer,
+  order_index  integer not null,
+  xp_reward    integer default 50,
+  created_at   timestamptz default now()
 );
 
--- Course Progress Table
-CREATE TABLE course_progress (
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  completed BOOLEAN DEFAULT false,
-  completed_at TIMESTAMPTZ,
-  PRIMARY KEY (user_id, course_id)
+-- ENROLLMENTS
+create table public.enrollments (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.users(id) on delete cascade,
+  course_id    uuid references public.courses(id) on delete cascade,
+  enrolled_at  timestamptz default now(),
+  unique(user_id, course_id)
 );
 
-ALTER TABLE course_progress ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view their own progress" ON course_progress FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage their own progress" ON course_progress FOR ALL USING (auth.uid() = user_id);
+-- PROGRESS (per lesson)
+create table public.progress (
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid references public.users(id) on delete cascade,
+  course_id           uuid references public.courses(id) on delete cascade,
+  lesson_id           uuid references public.lessons(id) on delete cascade,
+  completed           boolean default false,
+  watch_time_sec      integer default 0,
+  completed_at        timestamptz,
+  unique(user_id, lesson_id)
+);
+
+-- BADGES
+create table public.badges (
+  id           uuid primary key default gen_random_uuid(),
+  name         text not null,
+  description  text,
+  icon_url     text,
+  xp_threshold integer,
+  criteria     jsonb
+);
+
+create table public.user_badges (
+  user_id      uuid references public.users(id) on delete cascade,
+  badge_id     uuid references public.badges(id) on delete cascade,
+  earned_at    timestamptz default now(),
+  primary key (user_id, badge_id)
+);
+
+-- AI TUTOR CONVERSATIONS
+create table public.ai_conversations (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.users(id) on delete cascade,
+  course_id    uuid references public.courses(id) on delete cascade,
+  messages     jsonb default '[]',
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now()
+);
+
+-- NOTIFICATIONS
+create table public.notifications (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.users(id) on delete cascade,
+  title        text,
+  content      text,
+  is_read      boolean default false,
+  created_at   timestamptz default now()
+);
+
+------------------------------------------------------------------
+-- ROW LEVEL SECURITY (RLS)
+------------------------------------------------------------------
+
+-- Enable RLS across V2
+alter table public.users enable row level security;
+alter table public.courses enable row level security;
+alter table public.lessons enable row level security;
+alter table public.enrollments enable row level security;
+alter table public.progress enable row level security;
+alter table public.badges enable row level security;
+alter table public.user_badges enable row level security;
+alter table public.ai_conversations enable row level security;
+alter table public.notifications enable row level security;
+
+-- USERS
+create policy "Users view own profile" on public.users for select using (auth.uid() = id);
+create policy "Users edit own profile" on public.users for update using (auth.uid() = id);
+create policy "Admins see all users" on public.users for all using (
+  exists (select 1 from public.users where id = auth.uid() and role = 'admin')
+);
+
+-- COURSES
+create policy "Anyone can view published courses" on public.courses for select using (is_published = true);
+create policy "Admins manage all courses" on public.courses for all using (
+  exists (select 1 from public.users where id = auth.uid() and role = 'admin')
+);
+
+-- LESSONS
+create policy "Anyone can view lessons of published courses" on public.lessons for select using (
+  exists (select 1 from public.courses c where c.id = public.lessons.course_id and c.is_published = true)
+);
+create policy "Admins manage all lessons" on public.lessons for all using (
+  exists (select 1 from public.users where id = auth.uid() and role = 'admin')
+);
+
+-- ENROLLMENTS
+create policy "Users manage own enrollments" on public.enrollments for all using (auth.uid() = user_id);
+
+-- PROGRESS
+create policy "Users manage own progress" on public.progress for all using (auth.uid() = user_id);
+
+-- BADGES
+create policy "Anyone can view badges" on public.badges for select using (true);
+create policy "Users see own badges" on public.user_badges for select using (auth.uid() = user_id);
+
+-- AI CONVERSATIONS
+create policy "Users manage own conversations" on public.ai_conversations for all using (auth.uid() = user_id);
+
+-- NOTIFICATIONS
+create policy "Users manage own notifications" on public.notifications for all using (auth.uid() = user_id);
