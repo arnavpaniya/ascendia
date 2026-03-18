@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, ClipboardList, Trophy, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, BookOpen, ClipboardList, Trophy, Settings, LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -21,6 +22,13 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   return (
     <aside className="w-64 h-screen hidden md:flex flex-col border-r bg-[#0f172a]/50 backdrop-blur-xl border-white/5 sticky top-0 py-6 px-4 shrink-0">
@@ -68,6 +76,15 @@ export function Sidebar() {
           );
         })}
       </nav>
+      
+      <div className="mt-auto pt-6 border-t border-white/5">
+        <button 
+          onClick={handleLogout} 
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-red-500/80 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+        >
+          <LogOut className="w-5 h-5" /> Logout
+        </button>
+      </div>
     </aside>
   );
 }

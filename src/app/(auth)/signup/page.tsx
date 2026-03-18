@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mail, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
+import { Mail, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle, BookOpen, Presentation } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+    const [role, setRole] = useState<'student' | 'admin'>('student')
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const router = useRouter()
@@ -29,6 +30,7 @@ export default function SignupPage() {
             options: {
                 data: {
                     full_name: name,
+                    role: role
                 }
             }
         })
@@ -57,14 +59,33 @@ export default function SignupPage() {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="flex gap-4">
+                   <button 
+                     type="button" 
+                     onClick={() => setRole('student')}
+                     className={`flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${role === 'student' ? 'border-[#6c63ff] bg-[#6c63ff]/10 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}
+                   >
+                     <BookOpen className="w-6 h-6" />
+                     <span className="text-sm font-medium">Student</span>
+                   </button>
+                   <button 
+                     type="button" 
+                     onClick={() => setRole('admin')}
+                     className={`flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${role === 'admin' ? 'border-[#f59e0b] bg-[#f59e0b]/10 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}
+                   >
+                     <Presentation className="w-6 h-6" />
+                     <span className="text-sm font-medium">Teacher</span>
+                   </button>
+                </div>
+
                 <div className="space-y-2">
                     <label className="text-sm font-medium ml-1">Full Name</label>
                     <div className="relative">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
                         <Input
                             type="text"
-                            placeholder="Aarav Sharma"
+                            placeholder="Hero Scholar"
                             className="pl-11"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
