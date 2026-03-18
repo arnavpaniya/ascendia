@@ -45,6 +45,11 @@ export default function TestInterface() {
     const [answers, setAnswers] = useState<Record<number, number>>({})
     const [isSubmitted, setIsSubmitted] = useState(false)
 
+    function handleAutoSubmit() {
+        setIsSubmitted(true)
+        // Here we would normally save to DB
+    }
+
     useEffect(() => {
         if (timeLeft <= 0) {
             handleAutoSubmit()
@@ -62,11 +67,6 @@ export default function TestInterface() {
 
     const handleSelect = (optionIdx: number) => {
         setAnswers(prev => ({ ...prev, [mockQuestions[currentIdx].id]: optionIdx }))
-    }
-
-    const handleAutoSubmit = () => {
-        setIsSubmitted(true)
-        // Here we would normally save to DB
     }
 
     const handleSubmit = () => {
