@@ -2,19 +2,46 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react'
+import { Mail, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
+    const [name, setName] = useState('')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const router = useRouter()
+    const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        // Signup logic will go here
-        setTimeout(() => setLoading(false), 2000)
+        setError(null)
+        
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: name,
+                }
+            }
+        })
+
+        setLoading(false)
+
+        if (error) {
+            setError(error.message)
+            return
+        }
+
+        router.push('/dashboard')
+        router.refresh()
     }
 
     return (
@@ -24,15 +51,23 @@ export default function SignupPage() {
                 <p className="text-foreground/60 text-sm mt-1">Start your UPSC preparation today</p>
             </div>
 
+            {error && (
+                <div className="p-3 text-sm bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {error}
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium ml-1">Full Name</label>
                     <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
                         <Input
                             type="text"
                             placeholder="Aarav Sharma"
                             className="pl-11"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
                             required
                         />
                     </div>
@@ -46,6 +81,8 @@ export default function SignupPage() {
                             type="email"
                             placeholder="name@example.com"
                             className="pl-11"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                         />
                     </div>
@@ -59,6 +96,8 @@ export default function SignupPage() {
                             type="password"
                             placeholder="••••••••"
                             className="pl-11"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             required
                         />
                     </div>

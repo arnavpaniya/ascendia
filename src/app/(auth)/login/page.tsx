@@ -2,19 +2,40 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const router = useRouter()
+    const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        // Auth logic will go here
-        setTimeout(() => setLoading(false), 2000)
+        setError(null)
+        
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        })
+
+        setLoading(false)
+
+        if (error) {
+            setError(error.message)
+            return
+        }
+
+        router.push('/dashboard')
+        router.refresh()
     }
 
     return (
@@ -23,6 +44,12 @@ export default function LoginPage() {
                 <h2 className="text-2xl font-bold">Welcome Back</h2>
                 <p className="text-foreground/60 text-sm mt-1">Continue your journey to success</p>
             </div>
+
+            {error && (
+                <div className="p-3 text-sm bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {error}
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -33,6 +60,8 @@ export default function LoginPage() {
                             type="email"
                             placeholder="name@example.com"
                             className="pl-11"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                         />
                     </div>
@@ -49,6 +78,8 @@ export default function LoginPage() {
                             type="password"
                             placeholder="••••••••"
                             className="pl-11"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             required
                         />
                     </div>

@@ -11,7 +11,7 @@ const leaderboardData = [
   { rank: 2, name: "Marcus T.", xp: 14200, percent: 92 },
   { rank: 3, name: "Sarah K.", xp: 13900, percent: 90 },
   { rank: 4, name: "David M.", xp: 12850, percent: 83 },
-  { rank: 5, name: "Arnav P.", xp: 12450, percent: 80 },
+  { rank: 5, name: "Valiant Scholar", xp: 12450, percent: 80 },
   { rank: 6, name: "Jessica L.", xp: 11900, percent: 77 },
 ];
 

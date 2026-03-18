@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import { TiltCard } from "@/components/ui/TiltCard";
@@ -21,6 +21,26 @@ const courses = [
 export default function CoursesPage() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [isSearching, setIsSearching] = useState(false);
+  const [loadedCourses, setLoadedCourses] = useState<any[]>(courses);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/courses`)
+      .then(res => res.json())
+      .then(data => {
+         // Format the backend data to match our UI props if data exists
+         if (data && data.length > 0) {
+            const formatted = data.map((c: any) => ({
+                id: c._id || c.title,
+                title: c.title,
+                instructor: c.createdBy || "Dr. Exemplar",
+                progress: Math.floor(Math.random() * 100),
+                image: c.videoUrl || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80`
+            }));
+            setLoadedCourses(formatted);
+         }
+      })
+      .catch(err => console.error("Backend unreachable, using fallback UI courses", err));
+  }, []);
 
   return (
     <div className="space-y-8 pb-12">
@@ -68,7 +88,7 @@ export default function CoursesPage() {
       </div>
 
       <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {courses.map((course) => (
+        {loadedCourses.map((course) => (
           <TiltCard key={course.id} className="cursor-pointer">
             <div className="h-48 relative rounded-t-2xl overflow-hidden bg-[#1e293b]">
               <div className="absolute inset-0 bg-gradient-to-br from-[#6c63ff]/20 to-[#f59e0b]/20 mix-blend-overlay" />

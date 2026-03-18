@@ -9,6 +9,8 @@ import { StaggerList } from "@/components/ui/StaggerList";
 import { useIntersectionReveal } from "@/hooks/useIntersectionReveal";
 import { BookOpen, Target, Clock, Zap } from "lucide-react";
 import { OrbField } from "@/components/three/OrbField";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
 
 const stats = [
   { label: "Current XP", value: 12450, icon: Zap, color: "#f59e0b" },
@@ -32,6 +34,16 @@ const activities = [
 export default function StudentDashboard() {
   const { ref: chartRef, isInView: chartInView } = useIntersectionReveal();
   const { ref: timelineRef, isInView: timelineInView } = useIntersectionReveal();
+  const [userName, setUserName] = useState("Scholar");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+         setUserName(data.user.user_metadata?.full_name?.split(' ')[0] || data.user.email?.split('@')[0] || "Scholar");
+      }
+    });
+  }, []);
 
   return (
     <div className="relative min-h-screen">
@@ -43,7 +55,7 @@ export default function StudentDashboard() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#6c63ff]/20 to-transparent pointer-events-none" />
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
             <div>
-              <h1 className="text-3xl font-syne font-bold mb-2">Welcome back, Arnav</h1>
+              <h1 className="text-3xl font-syne font-bold mb-2">Welcome back, {userName}</h1>
               <p className="text-white/60">Level 42 Scholar • Top 5% this week</p>
             </div>
             <div className="w-full md:w-1/3">

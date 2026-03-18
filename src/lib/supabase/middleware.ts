@@ -10,6 +10,13 @@ export async function updateSession(request: NextRequest) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your-supabase-url') {
+        const isProtected = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/courses') || request.nextUrl.pathname.startsWith('/assignments') || request.nextUrl.pathname.startsWith('/leaderboard') || request.nextUrl.pathname.startsWith('/settings')
+        
+        if (isProtected) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            return NextResponse.redirect(url)
+        }
         return supabaseResponse
     }
 
@@ -34,8 +41,24 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    // refreshing the auth token
-    await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
+    const isProtected = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/courses') || request.nextUrl.pathname.startsWith('/assignments') || request.nextUrl.pathname.startsWith('/leaderboard') || request.nextUrl.pathname.startsWith('/settings')
+    
+    // Redirect if accessing auth routes while logged in
+    if (user && isAuthRoute) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+    }
+
+    // Redirect if unauthenticated user tries to access a protected route
+    if (!user && isProtected) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        return NextResponse.redirect(url)
+    }
 
     return supabaseResponse
 }
