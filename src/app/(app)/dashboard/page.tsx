@@ -34,7 +34,7 @@ export default function StudentDashboard() {
       if (!authData?.user) return;
       
       const user = authData.user;
-      setUserName(user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || "Scholar");
+      setUserName("Valiant Scholar");
 
       const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
       const { data: pData } = await supabase.from('course_progress').select('*').eq('user_id', user.id);
