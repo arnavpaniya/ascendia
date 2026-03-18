@@ -1,22 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617;
+  --background: #080b12;
   --foreground: #f8fafc;
-
-  --primary: #2563eb;
-  /* Royal Blue */
+  --primary: #6c63ff; 
   --primary-foreground: #ffffff;
-
-  --accent: #fbbf24;
-  /* Gold */
-  --accent-foreground: #020617;
-
+  --accent: #f59e0b; 
+  --accent-foreground: #080b12;
+  --highlight: #38bdf8;
   --card: #0f172a;
   --card-foreground: #f8fafc;
-
   --border: #1e293b;
-  --ring: #2563eb;
+  --ring: #6c63ff;
 }
 
 @theme inline {
@@ -26,53 +21,36 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
+
+  --font-syne: var(--font-syne);
+  --font-dm-sans: var(--font-dm-sans);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground antialiased font-dm-sans;
+    line-height: 1.75;
+  }
+  h1, h2, h3, h4, h5, h6, .display-text {
+    @apply font-syne font-bold leading-tight;
   }
 }
 
 @layer components {
-  .premium-card {
-    @apply bg-card border border-white/5 transition-all duration-300;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  /* Reusable Glow/Hover classes */
+  .glow-border {
+    @apply relative border border-white/5 bg-card transition-all duration-300;
   }
-
-  .premium-card:hover {
-    @apply border-primary/30 -translate-y-1;
-    box-shadow: 0 20px 50px -12px rgba(37, 99, 235, 0.2);
+  .glow-border:hover {
+    @apply border-primary/40 -translate-y-1;
+    box-shadow: 0 10px 40px -10px rgba(108, 99, 255, 0.2);
   }
-
-  .premium-card-accent {
-    @apply bg-card border border-accent/10 transition-all duration-300;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-  }
-
-  .premium-card-accent:hover {
-    @apply border-accent/30 -translate-y-1;
-    box-shadow: 0 20px 50px -12px rgba(251, 191, 36, 0.1);
-  }
-
-  .text-glow {
-    text-shadow: 0 0 30px rgba(37, 99, 235, 0.3);
-  }
-
-  .gold-glow {
-    text-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
-  }
-}
-
-.gradient-bg {
-  background: radial-gradient(circle at 50% 50%, #1e293b 0%, #020617 100%);
 }

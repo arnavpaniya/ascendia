@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const syne = Syne({
+  variable: "--font-syne",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Ascendia | Elite UPSC Preparation",
-  description: "The definitive platform for elite civil service preparation. Join 100k+ students mastering their ambition with Ascendia.",
+  title: "Ascendia | Elite EdTech Platform",
+  description: "A next-generation EdTech platform for elite preparation.",
 };
 
 export default function RootLayout({
@@ -23,10 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${syne.variable} ${dmSans.variable} font-dm-sans antialiased`}>
         {children}
       </body>
     </html>
