@@ -16,6 +16,13 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Ascendia | Elite EdTech Platform",
   description: "A next-generation EdTech platform for elite preparation.",
+  icons: {
+    icon: [
+      { url: "/tab-logo.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/tab-logo.svg",
+    apple: "/tab-logo.svg",
+  },
 };
 
 export default function RootLayout({

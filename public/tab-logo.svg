@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="120" fill="#05070C"/>
+  <defs>
+    <linearGradient id="pipeBlue" x1="87" y1="432" x2="420" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3C7CC5"/>
+      <stop offset="0.34" stop-color="#8FD0FF"/>
+      <stop offset="0.66" stop-color="#5B98DA"/>
+      <stop offset="1" stop-color="#1D3557"/>
+    </linearGradient>
+    <linearGradient id="pipeLight" x1="118" y1="60" x2="226" y2="225" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8F8F8"/>
+      <stop offset="1" stop-color="#C8CDD6"/>
+    </linearGradient>
+    <linearGradient id="pipeDark" x1="336" y1="98" x2="430" y2="454" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D2D2D"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+    <filter id="glow" x="44" y="24" width="424" height="464" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.35 0 0 0 0 0.66 0 0 0 0 1 0 0 0 0.35 0"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#glow)" opacity="0.8">
+    <path d="M95 420L180 100H331L416 420" stroke="url(#pipeBlue)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M181 285H331" stroke="url(#pipeBlue)" stroke-width="28" stroke-linecap="round"/>
+  </g>
+
+  <path d="M103 424L188 102H324L409 424" stroke="url(#pipeBlue)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M184 286H327" stroke="url(#pipeBlue)" stroke-width="26" stroke-linecap="round"/>
+
+  <path d="M123 414L198 114" stroke="white" stroke-opacity="0.85" stroke-width="8" stroke-linecap="round"/>
+  <path d="M315 114L392 416" stroke="white" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
+  <path d="M192 277H319" stroke="white" stroke-opacity="0.58" stroke-width="5" stroke-linecap="round"/>
+
+  <path d="M122 87C122 71 135 58 151 58H303C319 58 332 71 332 87V100H196C174 100 154 114 148 136L122 232V87Z" fill="url(#pipeLight)"/>
+  <path d="M338 87C338 71 351 58 367 58H381C397 58 410 71 410 87V430C410 446 397 459 381 459H359C343 459 330 446 330 430V282C330 262 346 246 366 246H370V100C352 100 338 96 338 87Z" fill="url(#pipeDark)"/>
+  <path d="M179 287C179 271 192 258 208 258H241C257 258 270 271 270 287V298H179V287Z" fill="url(#pipeLight)" opacity="0.9"/>
+  <path d="M187 403C187 389 198 378 212 378H300C314 378 325 389 325 403V410H187V403Z" fill="url(#pipeLight)" opacity="0.78"/>
+</svg>
