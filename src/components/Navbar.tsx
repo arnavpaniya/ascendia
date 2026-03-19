@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LayoutDashboard } from 'lucide-react'
 import DashboardSidebar from './DashboardSidebar'
 
-const Navbar = () => {
+const Navbar = ({ onGetStarted }: { onGetStarted?: () => void }) => {
     const [isScrolled, setIsScrolled] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -18,6 +18,11 @@ const Navbar = () => {
         window.addEventListener('scroll', handleScroll)
         return () => window.removeEventListener('scroll', handleScroll)
     }, [])
+
+    const handleGetStartedClick = () => {
+        setIsMobileMenuOpen(false)
+        onGetStarted?.()
+    }
 
     return (
         <>
@@ -60,12 +65,12 @@ const Navbar = () => {
 
                         <div className="h-6 w-[1px] bg-white/10 mx-2" />
 
-                        <Link
-                            href="/get-started"
-                            className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-black uppercase tracking-widest hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all duration-300"
+                        <button
+                            onClick={handleGetStartedClick}
+                            className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-black uppercase tracking-widest hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all duration-300 cursor-pointer"
                         >
                             Get Started
-                        </Link>
+                        </button>
                     </div>
 
                     {/* Mobile Menu Toggle */}
@@ -100,9 +105,12 @@ const Navbar = () => {
                             <Link href="#courses" className="text-white/70 font-bold py-2" onClick={() => setIsMobileMenuOpen(false)}>Courses</Link>
                             <Link href="#pricing" className="text-white/70 font-bold py-2" onClick={() => setIsMobileMenuOpen(false)}>Pricing</Link>
                             <div className="h-[1px] bg-white/5 my-2" />
-                            <Link href="/get-started" className="bg-primary text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-widest">
+                            <button
+                                onClick={handleGetStartedClick}
+                                className="bg-primary text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-widest cursor-pointer"
+                            >
                                 Start Preparing
-                            </Link>
+                            </button>
                         </div>
                     </motion.div>
                 )}

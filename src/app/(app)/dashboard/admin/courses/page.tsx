@@ -59,7 +59,7 @@ export default function AdminCourseManager() {
       const lessonsSnap = await getAllLessons();
       const enrollsSnap = await getAllEnrollments();
       
-      const lessons = lessonsSnap.map((lesson) => ({ id: lesson.id, ...lesson } as any));
+      const lessons = lessonsSnap.map((lesson) => ({ ...lesson } as any));
       const enrolls = enrollsSnap;
 
       const data = coursesSnap.map((entry) => {
@@ -142,7 +142,7 @@ export default function AdminCourseManager() {
     }
 
     const lessonsSnap = await getAllLessons();
-    const lData = lessonsSnap.map((lesson) => ({ id: lesson.id, ...lesson } as any))
+    const lData = lessonsSnap.map((lesson) => ({ ...lesson } as any))
       .filter((l: any) => l.course_id === courseId)
       .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
     

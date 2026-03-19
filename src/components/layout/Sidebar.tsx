@@ -23,16 +23,14 @@ const teacherNavItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, signOut } = useAuthStore((state) => ({
-    profile: state.profile,
-    signOut: state.signOut,
-  }));
+  const profile = useAuthStore((state) => state.profile);
+  const signOut = useAuthStore((state) => state.signOut);
 
   const navItems = profile?.role === "teacher" ? teacherNavItems : baseStudentNavItems;
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/get-started");
+    router.push("/");
   };
 
   return (

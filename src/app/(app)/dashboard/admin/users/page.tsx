@@ -101,7 +101,7 @@ export default function AdminUsersManager() {
                     <td className="px-6 py-4">
                       <select 
                         value={user.role} 
-                        onChange={(e) => updateRoleMutation.mutate({ userId: user.id, newRole: e.target.value })}
+                        onChange={(e) => updateRoleMutation.mutate({ userId: user.id, newRole: e.target.value as "student" | "teacher" })}
                         disabled={updateRoleMutation.isPending}
                         className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-colors border ${user.role === 'teacher' ? 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20 hover:bg-[#f59e0b]/20' : 'bg-[#6c63ff]/10 text-[#7c6df0] border-[#6c63ff]/20 hover:bg-[#6c63ff]/20'}`}
                       >

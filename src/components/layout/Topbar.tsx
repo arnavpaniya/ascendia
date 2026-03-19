@@ -11,10 +11,8 @@ export function Topbar() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { profile, signOut } = useAuthStore((state) => ({
-    profile: state.profile,
-    signOut: state.signOut,
-  }));
+  const profile = useAuthStore((state) => state.profile);
+  const signOut = useAuthStore((state) => state.signOut);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -29,7 +27,7 @@ export function Topbar() {
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/get-started");
+    router.push("/");
   };
 
   return (

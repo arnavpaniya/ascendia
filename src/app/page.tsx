@@ -1,11 +1,18 @@
 "use client";
 
-import { motion, Variants } from "framer-motion";
-import { ChevronDown, ArrowRight, PlayCircle, BookOpen, Star, CheckCircle, MonitorPlay, Users, Target, ShieldCheck, Clock, Quote, Code, Trophy } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, Variants, AnimatePresence } from "framer-motion";
+import { ChevronDown, ArrowRight, PlayCircle, BookOpen, Star, CheckCircle, MonitorPlay, Users, Target, ShieldCheck, Clock, Quote, Code, Trophy, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { ParticleCanvas } from "@/components/three/ParticleCanvas";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { PageTransition } from "@/components/layout/PageTransition";
+import { AuthRoleSelector } from "@/features/auth/components/AuthRoleSelector";
+import { createRoleSession } from "@/features/auth/local-auth";
+import { getRedirectPathForRole } from "@/features/auth/utils";
+import type { AppUserRole } from "@/features/auth/types";
+import { useAuthStore } from "@/stores/auth.store";
 
 const letterVariants: Variants = {
   hidden: { opacity: 0, y: 50 },
@@ -25,13 +32,113 @@ const fadeUpVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
+function RoleSelectionModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const setSession = useAuthStore((state) => state.setSession);
+  const [role, setRole] = useState<AppUserRole>("student");
+  const [loading, setLoading] = useState(false);
+
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+      const session = await createRoleSession(role);
+      setSession(session);
+      router.push(getRedirectPathForRole(role));
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+          onClick={onClose}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+          {/* Modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 24 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative z-10 w-full max-w-xl rounded-[2rem] border border-white/10 bg-[#0a0f1c]/95 p-8 md:p-10 shadow-[0_0_60px_rgba(99,102,241,0.15)] backdrop-blur-2xl"
+          >
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-5 p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Ambient glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none" />
+
+            <div className="mb-8 text-center relative z-10">
+              <motion.h2
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-3xl font-syne font-bold text-white"
+              >
+                Choose Your Workspace
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-3 text-sm text-white/60"
+              >
+                Pick how you want to enter Ascendia. Students go to learning tools, teachers go to the teaching dashboard.
+              </motion.p>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <AuthRoleSelector value={role} onChange={setRole} />
+            </motion.div>
+
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              type="button"
+              onClick={handleContinue}
+              disabled={loading}
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 text-base font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all hover:opacity-95 hover:-translate-y-0.5 disabled:opacity-70 cursor-pointer"
+            >
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Continue"}
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function LandingPage() {
   const brand = "ASCENDIA";
+  const [showRoleModal, setShowRoleModal] = useState(false);
 
   return (
     <PageTransition>
       <div className="w-full min-h-screen bg-[#060913] text-white selection:bg-indigo-500/30 overflow-x-hidden">
         
+        {/* Role Selection Modal */}
+        <RoleSelectionModal isOpen={showRoleModal} onClose={() => setShowRoleModal(false)} />
+
         {/* =========================================
             HERO SECTION (ENHANCED EXISTING LAYOUT)
             ========================================= */}
@@ -106,13 +213,14 @@ export default function LandingPage() {
               transition={{ delay: 1.2, duration: 0.6 }}
               className="flex flex-col sm:flex-row gap-5 items-center w-full sm:w-auto"
             >
-              <Link href="/get-started" className="w-full sm:w-auto">
-                <button className="group relative w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl font-bold text-base transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 overflow-hidden">
-                  <span className="relative z-10">Start Learning</span>
-                  <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-                </button>
-              </Link>
+              <button
+                onClick={() => setShowRoleModal(true)}
+                className="group relative w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl font-bold text-base transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 overflow-hidden cursor-pointer"
+              >
+                <span className="relative z-10">Start Learning</span>
+                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+              </button>
               <Link href="#courses" className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto px-8 py-4 bg-white/[0.05] hover:bg-white/[0.1] text-white border border-white/10 rounded-xl font-bold text-base backdrop-blur-md transition-all duration-300 hover:-translate-y-1">
                   Explore Courses
@@ -330,7 +438,7 @@ export default function LandingPage() {
                ].map((test, i) => (
                  <div key={i} className="p-8 rounded-[2rem] bg-white/[0.03] border border-white-[0.05] relative">
                    <Quote className="absolute top-6 right-6 w-12 h-12 text-white/5" />
-                   <p className="text-white/80 leading-relaxed mb-6 italic relative z-10">"{test.comment}"</p>
+                   <p className="text-white/80 leading-relaxed mb-6 italic relative z-10">&quot;{test.comment}&quot;</p>
                    <div className="flex items-center gap-4">
                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500" />
                      <div>
@@ -351,12 +459,13 @@ export default function LandingPage() {
         <section className="py-32 px-6 relative z-10 flex justify-center text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUpVariants} className="max-w-3xl flex flex-col items-center">
             <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">Ready to Elevate?</h2>
-            <p className="text-xl text-white/50 mb-10 max-w-xl">Join thousands of students who have already transformed their careers with Ascendia's structured roadmap.</p>
-            <Link href="/get-started">
-              <button className="px-10 py-5 bg-white text-[#060913] rounded-xl font-extrabold text-lg hover:bg-indigo-50 transition-colors shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] hover:-translate-y-1">
-                Start Your Journey Today
-              </button>
-            </Link>
+            <p className="text-xl text-white/50 mb-10 max-w-xl">Join thousands of students who have already transformed their careers with Ascendia&apos;s structured roadmap.</p>
+            <button
+              onClick={() => setShowRoleModal(true)}
+              className="px-10 py-5 bg-white text-[#060913] rounded-xl font-extrabold text-lg hover:bg-indigo-50 transition-colors shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] hover:-translate-y-1 cursor-pointer"
+            >
+              Start Your Journey Today
+            </button>
           </motion.div>
         </section>
 

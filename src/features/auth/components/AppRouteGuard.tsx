@@ -19,7 +19,7 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (!profile) {
-      return pathname === "/get-started" ? null : "/get-started";
+      return pathname === "/" ? null : "/";
     }
 
     if (pathname.startsWith("/dashboard/teacher") && profile.role !== "teacher") {
