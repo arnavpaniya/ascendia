@@ -27,6 +27,8 @@ export function getReadableAuthError(error: unknown) {
         return "Google sign-in was cancelled before completion.";
       case "auth/popup-blocked":
         return "Your browser blocked the Google sign-in popup.";
+      case "auth/network-request-failed":
+        return "Firebase could not reach the auth service. Check your internet connection, disable VPN/ad blockers for this site, and confirm your app domain is allowed in Firebase Authentication.";
       case "auth/too-many-requests":
         return "Too many attempts. Try again in a few minutes.";
       default:
