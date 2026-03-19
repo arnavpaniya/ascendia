@@ -1,6 +1,5 @@
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const defaultFirebaseConfig = {
@@ -36,11 +35,7 @@ if (missingConfigKeys.length > 0) {
 }
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
-
-googleProvider.setCustomParameters({ prompt: "select_account" });
 
 let analytics: Analytics | null = null;
 
@@ -52,4 +47,4 @@ if (typeof window !== "undefined") {
   });
 }
 
-export { app, auth, db, analytics, googleProvider };
+export { app, db, analytics };

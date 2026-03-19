@@ -8,26 +8,25 @@ import { useEffect } from "react";
 
 export function GuestRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, profile, loading, initialized } = useAuthStore((state) => ({
-    user: state.user,
+  const { profile, loading, initialized } = useAuthStore((state) => ({
     profile: state.profile,
     loading: state.loading,
     initialized: state.initialized,
   }));
 
   useEffect(() => {
-    if (!initialized || loading || !user) {
+    if (!initialized || loading || !profile) {
       return;
     }
 
     router.replace(getRedirectPathForRole(profile?.role ?? "student"));
-  }, [initialized, loading, profile?.role, router, user]);
+  }, [initialized, loading, profile?.role, router, profile]);
 
   if (!initialized || loading) {
     return <AuthLoadingScreen />;
   }
 
-  if (user) {
+  if (profile) {
     return <AuthLoadingScreen />;
   }
 

@@ -1,20 +1,55 @@
+import { fetchPrototypeProfile } from "@/features/auth/firebase-auth";
+import type { SessionUser, UserProfile } from "@/features/auth/types";
 import { create } from "zustand";
-import { auth } from "@/lib/firebase/config";
-import { ensureUserProfileDocument, signOutUser } from "@/features/auth/firebase-auth";
-import type { UserProfile } from "@/features/auth/types";
-import { onAuthStateChanged, type Unsubscribe, type User as FirebaseUser } from "firebase/auth";
+
+const PROTOTYPE_SESSION_KEY = "ascendia.prototype.session";
+
+interface StoredSession {
+  user: SessionUser;
+  profile: UserProfile;
+}
 
 interface AuthStore {
-  user: FirebaseUser | null;
+  user: SessionUser | null;
   profile: UserProfile | null;
   loading: boolean;
   initialized: boolean;
   initialize: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  setSession: (session: StoredSession) => void;
   signOut: () => Promise<void>;
 }
 
-let authUnsubscribe: Unsubscribe | null = null;
+function readStoredSession(): StoredSession | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(PROTOTYPE_SESSION_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as StoredSession;
+  } catch {
+    window.localStorage.removeItem(PROTOTYPE_SESSION_KEY);
+    return null;
+  }
+}
+
+function writeStoredSession(session: StoredSession | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!session) {
+    window.localStorage.removeItem(PROTOTYPE_SESSION_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(PROTOTYPE_SESSION_KEY, JSON.stringify(session));
+}
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
@@ -23,35 +58,24 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   initialized: false,
 
   initialize: async () => {
-    if (authUnsubscribe || get().initialized) {
+    if (get().initialized) {
       return;
     }
 
     set({ loading: true });
 
-    authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (!firebaseUser) {
-          set({ user: null, profile: null, loading: false, initialized: true });
-          return;
-        }
+    const session = readStoredSession();
 
-        const profile = await ensureUserProfileDocument(firebaseUser);
-        set({
-          user: firebaseUser,
-          profile,
-          loading: false,
-          initialized: true,
-        });
-      } catch (error) {
-        console.error("Failed to initialize auth state:", error);
-        set({
-          user: firebaseUser,
-          profile: null,
-          loading: false,
-          initialized: true,
-        });
-      }
+    if (!session) {
+      set({ user: null, profile: null, loading: false, initialized: true });
+      return;
+    }
+
+    set({
+      user: session.user,
+      profile: session.profile,
+      loading: false,
+      initialized: true,
     });
   },
 
@@ -64,23 +88,38 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ loading: true });
 
     try {
-      const profile = await ensureUserProfileDocument(currentUser);
+      const profile = await fetchPrototypeProfile(currentUser.uid);
+      if (!profile) {
+        writeStoredSession(null);
+        set({ user: null, profile: null, loading: false });
+        return;
+      }
+
+      const nextSession = {
+        user: currentUser,
+        profile,
+      };
+
+      writeStoredSession(nextSession);
       set({ profile, loading: false });
     } catch (error) {
-      console.error("Failed to refresh user profile:", error);
+      console.error("Failed to refresh prototype profile:", error);
       set({ loading: false });
     }
   },
 
-  signOut: async () => {
-    set({ loading: true });
+  setSession: (session) => {
+    writeStoredSession(session);
+    set({
+      user: session.user,
+      profile: session.profile,
+      loading: false,
+      initialized: true,
+    });
+  },
 
-    try {
-      await signOutUser();
-      set({ user: null, profile: null, loading: false });
-    } catch (error) {
-      console.error("Failed to sign out:", error);
-      set({ loading: false });
-    }
+  signOut: async () => {
+    writeStoredSession(null);
+    set({ user: null, profile: null, loading: false, initialized: true });
   },
 }));

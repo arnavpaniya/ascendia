@@ -9,8 +9,9 @@ import { Users, TrendingUp, Award, BookOpen, Clock, Edit, Trash2 } from "lucide-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { db, auth } from "@/lib/firebase/config";
+import { db } from "@/lib/firebase/config";
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { useAuthStore } from "@/stores/auth.store";
 
 // Dummy Data
 const revenueData = [
@@ -43,6 +44,7 @@ const alerts = [
 ];
 
 export default function AdminDashboard() {
+  const profile = useAuthStore((state) => state.profile);
   const [courses, setCourses] = useState<any[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [formData, setFormData] = useState({ id: '', title: '', description: '', video_url: '' });
@@ -69,7 +71,6 @@ export default function AdminDashboard() {
   const saveCourse = async (e: any) => {
     e.preventDefault();
     setLoading(true);
-    const user = auth.currentUser;
 
     if (isEditing && formData.id) {
       await updateDoc(doc(db, 'courses', formData.id), { 
@@ -83,7 +84,7 @@ export default function AdminDashboard() {
         title: formData.title, 
         description: formData.description, 
         video_url: formData.video_url, 
-        created_by: user?.uid,
+        created_by: profile?.id,
         created_at: new Date().toISOString()
       });
     }

@@ -10,8 +10,9 @@ import { AuthStatusMessage } from '@/features/auth/components/AuthStatusMessage'
 import { AuthTextField } from '@/features/auth/components/AuthTextField'
 import { GoogleAuthButton } from '@/features/auth/components/GoogleAuthButton'
 import type { AppUserRole } from '@/features/auth/types'
-import { signInWithGoogle, signUpWithEmail } from '@/features/auth/firebase-auth'
+import { prototypeQuickAccess, prototypeSignUp } from '@/features/auth/firebase-auth'
 import { getRedirectPathForRole, getReadableAuthError } from '@/features/auth/utils'
+import { useAuthStore } from '@/stores/auth.store'
 
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -43,6 +44,7 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false)
     const [googleLoading, setGoogleLoading] = useState(false)
     const router = useRouter()
+    const setSession = useAuthStore((state) => state.setSession)
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -57,9 +59,10 @@ export default function SignupPage() {
         setSuccessMessage(null)
 
         try {
-            const { profile } = await signUpWithEmail({ name, email, password, role })
+            const session = await prototypeSignUp({ name, email, password, role })
+            setSession(session)
             setSuccessMessage('Account created. Redirecting...')
-            router.push(getRedirectPathForRole(profile.role))
+            router.push(getRedirectPathForRole(session.profile.role))
             router.refresh()
         } catch (authError) {
             setError(getReadableAuthError(authError))
@@ -74,8 +77,9 @@ export default function SignupPage() {
         setSuccessMessage(null)
 
         try {
-            const { profile } = await signInWithGoogle(role)
-            router.push(getRedirectPathForRole(profile.role))
+            const session = await prototypeQuickAccess(role)
+            setSession(session)
+            router.push(getRedirectPathForRole(session.profile.role))
             router.refresh()
         } catch (authError) {
             setError(getReadableAuthError(authError))
@@ -88,7 +92,7 @@ export default function SignupPage() {
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
             <motion.div variants={itemVariants} className="space-y-2 text-center">
                 <h2 className="text-3xl font-bold tracking-tight text-white">Create Account</h2>
-                <p className="text-sm font-medium text-white/60">Choose your role and sign up with Firebase.</p>
+                <p className="text-sm font-medium text-white/60">Prototype mode saves the form to Firebase without verifying credentials.</p>
             </motion.div>
 
             <AuthStatusMessage error={error} success={successMessage} />

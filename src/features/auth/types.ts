@@ -13,6 +13,11 @@ export interface UserProfile {
   created_at: string;
 }
 
+export interface SessionUser {
+  uid: string;
+  email: string;
+}
+
 export interface AuthCredentials {
   email: string;
   password: string;

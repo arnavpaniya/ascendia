@@ -8,8 +8,9 @@ import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
 import { AuthStatusMessage } from '@/features/auth/components/AuthStatusMessage'
 import { AuthTextField } from '@/features/auth/components/AuthTextField'
 import { GoogleAuthButton } from '@/features/auth/components/GoogleAuthButton'
-import { signInWithEmail, signInWithGoogle } from '@/features/auth/firebase-auth'
+import { prototypeQuickAccess, prototypeSignIn } from '@/features/auth/firebase-auth'
 import { getRedirectPathForRole, getReadableAuthError } from '@/features/auth/utils'
+import { useAuthStore } from '@/stores/auth.store'
 
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -37,6 +38,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const [googleLoading, setGoogleLoading] = useState(false)
     const router = useRouter()
+    const setSession = useAuthStore((state) => state.setSession)
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -44,8 +46,9 @@ export default function LoginPage() {
         setError(null)
 
         try {
-            const { profile } = await signInWithEmail({ email, password })
-            router.push(getRedirectPathForRole(profile.role))
+            const session = await prototypeSignIn({ email, password })
+            setSession(session)
+            router.push(getRedirectPathForRole(session.profile.role))
             router.refresh()
         } catch (authError) {
             setError(getReadableAuthError(authError))
@@ -59,8 +62,9 @@ export default function LoginPage() {
         setError(null)
 
         try {
-            const { profile } = await signInWithGoogle('student')
-            router.push(getRedirectPathForRole(profile.role))
+            const session = await prototypeQuickAccess('student')
+            setSession(session)
+            router.push(getRedirectPathForRole(session.profile.role))
             router.refresh()
         } catch (authError) {
             setError(getReadableAuthError(authError))
@@ -73,7 +77,7 @@ export default function LoginPage() {
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
             <motion.div variants={itemVariants} className="space-y-2 text-center">
                 <h2 className="text-3xl font-bold tracking-tight text-white">Welcome Back</h2>
-                <p className="text-sm font-medium text-white/60">Sign in with email/password or Google.</p>
+                <p className="text-sm font-medium text-white/60">Prototype mode: your entry is saved to Firebase, then you are let in directly.</p>
             </motion.div>
 
             <AuthStatusMessage error={error} />

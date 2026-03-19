@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { auth, db } from "@/lib/firebase/config";
+import { db } from "@/lib/firebase/config";
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { motion, AnimatePresence } from "framer-motion";

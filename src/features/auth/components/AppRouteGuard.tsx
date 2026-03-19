@@ -8,8 +8,7 @@ import { useEffect } from "react";
 export function AppRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, loading, initialized } = useAuthStore((state) => ({
-    user: state.user,
+  const { profile, loading, initialized } = useAuthStore((state) => ({
     profile: state.profile,
     loading: state.loading,
     initialized: state.initialized,
@@ -20,7 +19,7 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!user) {
+    if (!profile) {
       router.replace("/login");
       return;
     }
@@ -28,9 +27,9 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/dashboard/admin") && profile && profile.role !== "admin") {
       router.replace("/dashboard");
     }
-  }, [initialized, loading, pathname, profile, router, user]);
+  }, [initialized, loading, pathname, profile, router]);
 
-  if (!initialized || loading || !user || !profile) {
+  if (!initialized || loading || !profile) {
     return <AuthLoadingScreen />;
   }
 
