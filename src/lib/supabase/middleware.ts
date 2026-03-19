@@ -7,7 +7,7 @@ export async function updateSession(request: NextRequest) {
     })
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
 
     if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your-supabase-url') {
         const isProtected = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/courses') || request.nextUrl.pathname.startsWith('/assignments') || request.nextUrl.pathname.startsWith('/leaderboard') || request.nextUrl.pathname.startsWith('/settings')
