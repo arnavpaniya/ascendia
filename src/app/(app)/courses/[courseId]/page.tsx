@@ -1,19 +1,17 @@
 "use client";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { db } from "@/lib/firebase/config";
-import { doc, getDoc, collection, query, where, getDocs, addDoc } from "firebase/firestore";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
 import { Loader2, ArrowLeft, PlayCircle, Lock, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useGamification } from "@/hooks/useGamification";
+import { enrollInCourse, getCourseById, getEnrollmentsByUser, getLessonsByCourse, getProgressByUser } from "@/lib/mock-data";
 
 export default function CourseOverview() {
   const { courseId } = useParams();
-  const router = useRouter();
   const { profile } = useAuthStore();
   const { fireConfetti } = useGamification();
 
@@ -21,18 +19,11 @@ export default function CourseOverview() {
     queryKey: ['course', courseId],
     enabled: !!courseId && !!profile?.id,
     queryFn: async () => {
-      const courseSnap = await getDoc(doc(db, 'courses', courseId as string));
-      const course = courseSnap.exists() ? { id: courseSnap.id, ...courseSnap.data() } : null;
-      
-      const lessonsSnap = await getDocs(query(collection(db, 'lessons'), where('course_id', '==', courseId)));
-      const lessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      lessons.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
-
-      const enrollmentsSnap = await getDocs(query(collection(db, 'enrollments'), where('course_id', '==', courseId), where('user_id', '==', profile!.id)));
-      const enrollment = enrollmentsSnap.empty ? null : { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() };
-
-      const progressSnap = await getDocs(query(collection(db, 'progress'), where('course_id', '==', courseId), where('user_id', '==', profile!.id)));
-      const progress = progressSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const course = await getCourseById(courseId as string);
+      const lessons = await getLessonsByCourse(courseId as string);
+      const enrollments = await getEnrollmentsByUser(profile!.id);
+      const progress = await getProgressByUser(profile!.id);
+      const enrollment = enrollments.find((item) => item.course_id === courseId) ?? null;
       
       return {
         course,
@@ -45,10 +36,7 @@ export default function CourseOverview() {
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
-      await addDoc(collection(db, 'enrollments'), {
-        user_id: profile!.id,
-        course_id: courseId as string
-      });
+      await enrollInCourse(profile!.id, courseId as string);
     },
     onSuccess: () => {
       fireConfetti();

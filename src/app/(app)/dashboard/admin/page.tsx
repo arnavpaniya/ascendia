@@ -9,9 +9,8 @@ import { Users, TrendingUp, Award, BookOpen, Clock, Edit, Trash2 } from "lucide-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useAuthStore } from "@/stores/auth.store";
+import { deleteCourse as removeCourse, getAllCourses, getAllUsers, upsertCourse } from "@/lib/mock-data";
 
 // Dummy Data
 const revenueData = [
@@ -53,14 +52,12 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     // Fetch courses
-    const coursesSnap = await getDocs(collection(db, 'courses'));
-    const cData = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const cData = await getAllCourses();
     cData.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     setCourses(cData);
     
-    // Count exact total users
-    const usersSnap = await getDocs(collection(db, 'users'));
-    setTotalUsers(usersSnap.size);
+    const users = await getAllUsers();
+    setTotalUsers(users.length);
     setLoading(false);
   };
 
@@ -73,19 +70,27 @@ export default function AdminDashboard() {
     setLoading(true);
 
     if (isEditing && formData.id) {
-      await updateDoc(doc(db, 'courses', formData.id), { 
+      await upsertCourse({
+        id: formData.id,
         title: formData.title, 
         description: formData.description, 
-        video_url: formData.video_url 
+        video_url: formData.video_url,
+        category: "General",
+        difficulty: "beginner",
+        thumbnail_url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&q=80",
+        is_published: true,
+        created_by: profile?.id,
       });
     } else {
-      const newRef = doc(collection(db, 'courses'));
-      await setDoc(newRef, { 
+      await upsertCourse({
         title: formData.title, 
         description: formData.description, 
         video_url: formData.video_url, 
+        category: "General",
+        difficulty: "beginner",
+        thumbnail_url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&q=80",
+        is_published: true,
         created_by: profile?.id,
-        created_at: new Date().toISOString()
       });
     }
     setFormData({ id: '', title: '', description: '', video_url: '' });
@@ -101,7 +106,7 @@ export default function AdminDashboard() {
   const deleteCourse = async (id: string) => {
     if (!confirm("Are you sure you want to delete this course?")) return;
     setLoading(true);
-    await deleteDoc(doc(db, 'courses', id));
+    await removeCourse(id);
     fetchData();
   };
 
@@ -109,7 +114,7 @@ export default function AdminDashboard() {
     <div className="space-y-8 pb-12">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-syne font-bold mb-2 text-glow">Admin Overview</h1>
+          <h1 className="text-3xl font-syne font-bold mb-2 text-glow">Teacher Overview</h1>
           <p className="text-white/60">Platform-wide KPIs and metrics</p>
         </div>
       </div>

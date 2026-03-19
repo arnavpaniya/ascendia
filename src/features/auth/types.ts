@@ -1,4 +1,4 @@
-export type AppUserRole = "student" | "admin";
+export type AppUserRole = "student" | "teacher";
 
 export interface UserProfile {
   id: string;
@@ -16,14 +16,4 @@ export interface UserProfile {
 export interface SessionUser {
   uid: string;
   email: string;
-}
-
-export interface AuthCredentials {
-  email: string;
-  password: string;
-}
-
-export interface SignUpPayload extends AuthCredentials {
-  name: string;
-  role: AppUserRole;
 }

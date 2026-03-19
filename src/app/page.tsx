@@ -106,7 +106,7 @@ export default function LandingPage() {
               transition={{ delay: 1.2, duration: 0.6 }}
               className="flex flex-col sm:flex-row gap-5 items-center w-full sm:w-auto"
             >
-              <Link href="/signup" className="w-full sm:w-auto">
+              <Link href="/get-started" className="w-full sm:w-auto">
                 <button className="group relative w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl font-bold text-base transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 overflow-hidden">
                   <span className="relative z-10">Start Learning</span>
                   <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
@@ -352,7 +352,7 @@ export default function LandingPage() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUpVariants} className="max-w-3xl flex flex-col items-center">
             <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">Ready to Elevate?</h2>
             <p className="text-xl text-white/50 mb-10 max-w-xl">Join thousands of students who have already transformed their careers with Ascendia's structured roadmap.</p>
-            <Link href="/signup">
+            <Link href="/get-started">
               <button className="px-10 py-5 bg-white text-[#060913] rounded-xl font-extrabold text-lg hover:bg-indigo-50 transition-colors shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] hover:-translate-y-1">
                 Start Your Journey Today
               </button>

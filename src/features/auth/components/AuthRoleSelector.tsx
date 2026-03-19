@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const roleIcons = {
   student: BookOpen,
-  admin: Presentation,
+  teacher: Presentation,
 };
 
 interface AuthRoleSelectorProps {

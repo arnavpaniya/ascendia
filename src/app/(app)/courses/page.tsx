@@ -6,10 +6,9 @@ import { Search } from "lucide-react";
 import { TiltCard } from "@/components/ui/TiltCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StaggerList } from "@/components/ui/StaggerList";
-import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/auth.store";
+import { getProgressByUser, getPublishedCourses } from "@/lib/mock-data";
 
 const filters = ["All", "In Progress", "Completed", "Recommended"];
 
@@ -22,14 +21,12 @@ export default function CoursesPage() {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const coursesSnap = await getDocs(collection(db, 'courses'));
-      const cData = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      cData.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      const cData = await getPublishedCourses();
+      cData.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       
       let pData: any[] = [];
       if (profile?.id) {
-        const progressSnap = await getDocs(query(collection(db, 'progress'), where('user_id', '==', profile.id)));
-        pData = progressSnap.docs.map(d => d.data());
+        pData = await getProgressByUser(profile.id);
       }
       const completedIds = new Set(pData.filter(p => p.completed).map(p => p.course_id));
 

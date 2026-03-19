@@ -15,8 +15,8 @@ const baseStudentNavItems = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-const adminNavItems = [
-  { name: "Admin", href: "/dashboard/admin", icon: LayoutDashboard },
+const teacherNavItems = [
+  { name: "Teacher Hub", href: "/dashboard/teacher", icon: LayoutDashboard },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -28,11 +28,11 @@ export function Sidebar() {
     signOut: state.signOut,
   }));
 
-  const navItems = profile?.role === "admin" ? adminNavItems : baseStudentNavItems;
+  const navItems = profile?.role === "teacher" ? teacherNavItems : baseStudentNavItems;
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/login");
+    router.push("/get-started");
   };
 
   return (

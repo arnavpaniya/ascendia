@@ -6,11 +6,16 @@ import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const initializeAuth = useAuthStore(state => state.initialize);
+  const initializeAuth = useAuthStore((state) => state.initialize);
+  const initialized = useAuthStore((state) => state.initialized);
 
   useEffect(() => {
+    if (initialized) {
+      return;
+    }
+
     initializeAuth();
-  }, [initializeAuth]);
+  }, [initializeAuth, initialized]);
 
   return (
     <QueryClientProvider client={queryClient}>

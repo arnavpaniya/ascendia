@@ -3,37 +3,42 @@
 import { AuthLoadingScreen } from "@/features/auth/components/AuthLoadingScreen";
 import { useAuthStore } from "@/stores/auth.store";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 export function AppRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { profile, loading, initialized } = useAuthStore((state) => ({
-    profile: state.profile,
-    loading: state.loading,
-    initialized: state.initialized,
-  }));
+  const profile = useAuthStore((state) => state.profile);
+  const loading = useAuthStore((state) => state.loading);
+  const initialized = useAuthStore((state) => state.initialized);
+  const redirectingRef = useRef(false);
 
-  useEffect(() => {
+  const redirectTo = useMemo(() => {
     if (!initialized || loading) {
-      return;
+      return null;
     }
 
     if (!profile) {
-      router.replace("/login");
+      return pathname === "/get-started" ? null : "/get-started";
+    }
+
+    if (pathname.startsWith("/dashboard/teacher") && profile.role !== "teacher") {
+      return pathname === "/dashboard" ? null : "/dashboard";
+    }
+
+    return null;
+  }, [initialized, loading, pathname, profile]);
+
+  useEffect(() => {
+    if (!redirectTo || redirectingRef.current) {
       return;
     }
 
-    if (pathname.startsWith("/dashboard/admin") && profile && profile.role !== "admin") {
-      router.replace("/dashboard");
-    }
-  }, [initialized, loading, pathname, profile, router]);
+    redirectingRef.current = true;
+    router.replace(redirectTo);
+  }, [redirectTo, router]);
 
-  if (!initialized || loading || !profile) {
-    return <AuthLoadingScreen />;
-  }
-
-  if (pathname.startsWith("/dashboard/admin") && profile.role !== "admin") {
+  if (!initialized || loading || !profile || redirectTo) {
     return <AuthLoadingScreen />;
   }
 

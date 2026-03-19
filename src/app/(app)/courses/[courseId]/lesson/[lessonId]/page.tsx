@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { db } from "@/lib/firebase/config";
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from "firebase/firestore";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { useGamification } from "@/hooks/useGamification";
-import { Loader2, ArrowLeft, CheckCircle, PlayCircle, Trophy, Sparkles, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, PlayCircle, Trophy, Sparkles } from "lucide-react";
 import ReactPlayer from "react-player";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
@@ -16,10 +14,10 @@ import Link from "next/link";
 import { AIChatPanel } from "@/components/ai/AIChatPanel";
 import { XP_REWARDS } from "@/utils/xp.utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { completeLesson, getCourseById, getLessonsByCourse, getProgressByUser } from "@/lib/mock-data";
 
 export default function CoursePlayer() {
   const { courseId, lessonId } = useParams();
-  const router = useRouter();
   const { profile } = useAuthStore();
   const { fireConfetti } = useGamification();
 
@@ -30,15 +28,9 @@ export default function CoursePlayer() {
     queryKey: ['lesson-player', courseId, lessonId],
     enabled: !!courseId && !!lessonId && !!profile?.id,
     queryFn: async () => {
-      const courseSnap = await getDoc(doc(db, 'courses', courseId as string));
-      const course = courseSnap.exists() ? { id: courseSnap.id, ...courseSnap.data() } : null;
-      
-      const lessonsSnap = await getDocs(query(collection(db, 'lessons'), where('course_id', '==', courseId)));
-      const lessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      lessons.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
-      
-      const progressSnap = await getDocs(query(collection(db, 'progress'), where('course_id', '==', courseId), where('user_id', '==', profile!.id)));
-      const progress = progressSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const course = await getCourseById(courseId as string);
+      const lessons = await getLessonsByCourse(courseId as string);
+      const progress = await getProgressByUser(profile!.id);
       
       const currentLesson = lessons?.find(l => l.id === lessonId);
       const currentProgress = progress?.find((p: any) => p.lesson_id === lessonId);
@@ -50,20 +42,11 @@ export default function CoursePlayer() {
   const completeLessonMutation = useMutation({
     mutationFn: async () => {
       if (!data?.currentLesson) return;
-      
-      const progressId = `${profile!.id}_${lessonId}`;
-      await setDoc(doc(db, 'progress', progressId), {
-        user_id: profile!.id,
-        course_id: courseId as string,
-        lesson_id: lessonId as string,
-        completed: true,
-        completed_at: new Date().toISOString()
-      }, { merge: true });
-
-      // Award XP
-      const userRef = doc(db, 'users', profile!.id);
-      await updateDoc(userRef, {
-        xp: (profile?.xp || 0) + ((data.currentLesson as any).xp_reward || XP_REWARDS.complete_lesson)
+      await completeLesson({
+        userId: profile!.id,
+        courseId: courseId as string,
+        lessonId: lessonId as string,
+        xpReward: (data.currentLesson as any).xp_reward || XP_REWARDS.complete_lesson,
       });
     },
     onSuccess: () => {

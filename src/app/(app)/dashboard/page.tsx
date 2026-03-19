@@ -9,13 +9,12 @@ import { StaggerList } from "@/components/ui/StaggerList";
 import { useIntersectionReveal } from "@/hooks/useIntersectionReveal";
 import { BookOpen, Target, Clock, Zap, Sparkles, Flame, Trophy } from "lucide-react";
 import { OrbField } from "@/components/three/OrbField";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/stores/auth.store";
 import { useQuery } from "@tanstack/react-query";
 import { calculateLevel } from "@/utils/xp.utils";
 import Link from "next/link";
 import { ActivityHeatmap } from "@/components/student/ActivityHeatmap";
+import { getAllLessons, getEnrollmentsByUser, getProgressByUser, getPublishedCourses } from "@/lib/mock-data";
 
 export default function StudentDashboard() {
   const { ref: timelineRef, isInView: timelineInView } = useIntersectionReveal();
@@ -25,19 +24,10 @@ export default function StudentDashboard() {
     queryKey: ['student-dashboard-stats', profile?.id],
     enabled: !!profile?.id,
     queryFn: async () => {
-      // Fetch all published courses
-      const coursesSnap = await getDocs(query(collection(db, 'courses'), where('is_published', '==', true)));
-      const courses = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
-      
-      // Fetch user enrollments + progress
-      const enrollmentsSnap = await getDocs(query(collection(db, 'enrollments'), where('user_id', '==', profile!.id)));
-      const enrollments = enrollmentsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
-      
-      const progressSnap = await getDocs(query(collection(db, 'progress'), where('user_id', '==', profile!.id)));
-      const progress = progressSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
-      
-      const lessonsSnap = await getDocs(collection(db, 'lessons'));
-      const lessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+      const courses = await getPublishedCourses();
+      const enrollments = await getEnrollmentsByUser(profile!.id);
+      const progress = await getProgressByUser(profile!.id);
+      const lessons = await getAllLessons();
 
       // Aggregate data
       const enrolledCourseIds = new Set(enrollments?.map(e => e.course_id));

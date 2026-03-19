@@ -2,7 +2,7 @@ import type { AppUserRole } from "@/features/auth/types";
 
 export const AUTH_REDIRECTS: Record<AppUserRole, string> = {
   student: "/dashboard",
-  admin: "/dashboard/admin",
+  teacher: "/dashboard/teacher",
 };
 
 export const ROLE_OPTIONS: Array<{
@@ -16,7 +16,7 @@ export const ROLE_OPTIONS: Array<{
     description: "Track lessons, courses, and your study progress.",
   },
   {
-    value: "admin",
+    value: "teacher",
     label: "Teacher",
     description: "Manage courses, learners, and platform content.",
   },

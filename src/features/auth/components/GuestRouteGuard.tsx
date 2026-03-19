@@ -3,30 +3,40 @@
 import { AuthLoadingScreen } from "@/features/auth/components/AuthLoadingScreen";
 import { getRedirectPathForRole } from "@/features/auth/utils";
 import { useAuthStore } from "@/stores/auth.store";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef } from "react";
 
 export function GuestRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { profile, loading, initialized } = useAuthStore((state) => ({
-    profile: state.profile,
-    loading: state.loading,
-    initialized: state.initialized,
-  }));
+  const pathname = usePathname();
+  const profile = useAuthStore((state) => state.profile);
+  const loading = useAuthStore((state) => state.loading);
+  const initialized = useAuthStore((state) => state.initialized);
+  const redirectingRef = useRef(false);
+
+  const redirectTo = useMemo(() => {
+    if (!initialized || loading || !profile) {
+      return null;
+    }
+
+    const nextPath = getRedirectPathForRole(profile.role ?? "student");
+    return pathname === nextPath ? null : nextPath;
+  }, [initialized, loading, pathname, profile]);
 
   useEffect(() => {
-    if (!initialized || loading || !profile) {
+    if (!redirectTo || redirectingRef.current) {
       return;
     }
 
-    router.replace(getRedirectPathForRole(profile?.role ?? "student"));
-  }, [initialized, loading, profile?.role, router, profile]);
+    redirectingRef.current = true;
+    router.replace(redirectTo);
+  }, [redirectTo, router]);
 
   if (!initialized || loading) {
     return <AuthLoadingScreen />;
   }
 
-  if (profile) {
+  if (profile || redirectTo) {
     return <AuthLoadingScreen />;
   }
 

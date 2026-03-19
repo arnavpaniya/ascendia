@@ -29,7 +29,7 @@ export function Topbar() {
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/login");
+    router.push("/get-started");
   };
 
   return (

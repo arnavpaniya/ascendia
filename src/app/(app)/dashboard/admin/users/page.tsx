@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { GlowCard } from "@/components/ui/GlowCard";
-import { Loader2, Search, Shield, User, MoreVertical, Edit } from "lucide-react";
+import { Loader2, Search, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { getAllEnrollments, getAllUsers, updateUserRole } from "@/lib/mock-data";
 
 export default function AdminUsersManager() {
   const [search, setSearch] = useState("");
@@ -15,13 +14,11 @@ export default function AdminUsersManager() {
   const { data: users, isLoading, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const enrollmentsSnap = await getDocs(collection(db, 'enrollments'));
-      const enrolls = enrollmentsSnap.docs.map(d => d.data());
+      const usersSnap = await getAllUsers();
+      const enrolls = await getAllEnrollments();
       
-      const data = usersSnap.docs.map(d => {
-         const user = d.data();
-         user.id = d.id;
+      const data = usersSnap.map((entry) => {
+         const user = { ...entry } as any;
          user.enrollments = [{ count: enrolls.filter(e => e.user_id === user.id).length }];
          return user;
       });
@@ -31,8 +28,8 @@ export default function AdminUsersManager() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
-      await updateDoc(doc(db, 'users', userId), { role: newRole });
+    mutationFn: async ({ userId, newRole }: { userId: string, newRole: "student" | "teacher" }) => {
+      await updateUserRole(userId, newRole);
     },
     onSuccess: () => refetch()
   });
@@ -66,7 +63,7 @@ export default function AdminUsersManager() {
           >
             <option value="all">All Roles</option>
             <option value="student">Students</option>
-            <option value="admin">Admins</option>
+            <option value="teacher">Teachers</option>
           </select>
         </div>
       </div>
@@ -106,10 +103,10 @@ export default function AdminUsersManager() {
                         value={user.role} 
                         onChange={(e) => updateRoleMutation.mutate({ userId: user.id, newRole: e.target.value })}
                         disabled={updateRoleMutation.isPending}
-                        className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-colors border ${user.role === 'admin' ? 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20 hover:bg-[#f59e0b]/20' : 'bg-[#6c63ff]/10 text-[#7c6df0] border-[#6c63ff]/20 hover:bg-[#6c63ff]/20'}`}
+                        className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-colors border ${user.role === 'teacher' ? 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20 hover:bg-[#f59e0b]/20' : 'bg-[#6c63ff]/10 text-[#7c6df0] border-[#6c63ff]/20 hover:bg-[#6c63ff]/20'}`}
                       >
                         <option value="student">Student</option>
-                        <option value="admin">Admin</option>
+                        <option value="teacher">Teacher</option>
                       </select>
                     </td>
                     <td className="px-6 py-4">

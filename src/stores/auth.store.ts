@@ -1,4 +1,4 @@
-import { fetchPrototypeProfile } from "@/features/auth/firebase-auth";
+import { getStoredUserProfile } from "@/lib/mock-data";
 import type { SessionUser, UserProfile } from "@/features/auth/types";
 import { create } from "zustand";
 
@@ -88,7 +88,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ loading: true });
 
     try {
-      const profile = await fetchPrototypeProfile(currentUser.uid);
+      const profile = await getStoredUserProfile(currentUser.uid);
       if (!profile) {
         writeStoredSession(null);
         set({ user: null, profile: null, loading: false });

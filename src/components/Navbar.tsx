@@ -61,14 +61,7 @@ const Navbar = () => {
                         <div className="h-6 w-[1px] bg-white/10 mx-2" />
 
                         <Link
-                            href="/login"
-                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-widest hover:bg-white/10 transition-all duration-300"
-                        >
-                            Login
-                        </Link>
-
-                        <Link
-                            href="/signup"
+                            href="/get-started"
                             className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-black uppercase tracking-widest hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all duration-300"
                         >
                             Get Started
@@ -107,7 +100,7 @@ const Navbar = () => {
                             <Link href="#courses" className="text-white/70 font-bold py-2" onClick={() => setIsMobileMenuOpen(false)}>Courses</Link>
                             <Link href="#pricing" className="text-white/70 font-bold py-2" onClick={() => setIsMobileMenuOpen(false)}>Pricing</Link>
                             <div className="h-[1px] bg-white/5 my-2" />
-                            <Link href="/signup" className="bg-primary text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-widest">
+                            <Link href="/get-started" className="bg-primary text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-widest">
                                 Start Preparing
                             </Link>
                         </div>

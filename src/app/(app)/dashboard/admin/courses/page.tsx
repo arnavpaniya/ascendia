@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Plus, Edit, Trash2, GripVertical, CheckCircle, Database } from "lucide-react";
@@ -11,6 +9,7 @@ import MDEditor from "@uiw/react-md-editor";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { getAllCourses, getAllEnrollments, getAllLessons, replaceCourseLessons, upsertCourse } from "@/lib/mock-data";
 
 interface LessonLocal { id: string; title: string; video_url: string; content_md: string; }
 
@@ -56,16 +55,15 @@ export default function AdminCourseManager() {
   const { data: courses, isLoading, refetch } = useQuery({
     queryKey: ['admin-courses'],
     queryFn: async () => {
-      const coursesSnap = await getDocs(collection(db, 'courses'));
-      const lessonsSnap = await getDocs(collection(db, 'lessons'));
-      const enrollsSnap = await getDocs(collection(db, 'enrollments'));
+      const coursesSnap = await getAllCourses();
+      const lessonsSnap = await getAllLessons();
+      const enrollsSnap = await getAllEnrollments();
       
-      const lessons = lessonsSnap.docs.map(d => ({id: d.id, ...d.data()} as any));
-      const enrolls = enrollsSnap.docs.map(d => d.data());
+      const lessons = lessonsSnap.map((lesson) => ({ id: lesson.id, ...lesson } as any));
+      const enrolls = enrollsSnap;
 
-      const data = coursesSnap.docs.map(d => {
-        const c = d.data() as any;
-        c.id = d.id;
+      const data = coursesSnap.map((entry) => {
+        const c = { ...entry } as any;
         c.lessons = [{ count: lessons.filter((l: any) => l.course_id === c.id).length }];
         c.enrollments = [{ count: enrolls.filter((e: any) => e.course_id === c.id).length }];
         return c;
@@ -77,37 +75,28 @@ export default function AdminCourseManager() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      let activeCourseId = editingCourseId;
+      const activeCourseId = await upsertCourse({
+        id: editingCourseId ?? undefined,
+        title,
+        description,
+        category,
+        difficulty,
+        is_published: publish,
+        thumbnail_url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&q=80",
+      });
 
-      // 1. Upsert Course
-      if (activeCourseId) {
-        await updateDoc(doc(db, 'courses', activeCourseId), { title, description, category, difficulty, is_published: publish });
-      } else {
-        const newCourseRef = doc(collection(db, 'courses'));
-        await setDoc(newCourseRef, { title, description, category, difficulty, is_published: publish, created_at: new Date().toISOString() });
-        activeCourseId = newCourseRef.id;
-      }
-
-      // 2. Delete missing lessons
-      const lessonsSnap = await getDocs(collection(db, 'lessons'));
-      const existingLessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data()} as any)).filter((l: any) => l.course_id === activeCourseId);
-      const existingIds = new Set(existingLessons.map((l: any) => l.id));
-      const newIds = new Set(lessons.filter((l: any) => !l.id.startsWith('draft-')).map((l: any) => l.id));
-      
-      for (const eid of existingIds) {
-        if (!newIds.has(eid as string)) await deleteDoc(doc(db, 'lessons', eid as string));
-      }
-
-      // 3. Upsert configured lessons sequentially to respect order_index
-      for (let i = 0; i < lessons.length; i++) {
-        const l = lessons[i] as any;
-        const payload = { course_id: activeCourseId, title: l.title, video_url: l.video_url, content_md: l.content_md, order_index: i };
-        if (l.id.startsWith('draft-')) {
-          await setDoc(doc(collection(db, 'lessons')), payload);
-        } else {
-          await updateDoc(doc(db, 'lessons', l.id), payload);
-        }
-      }
+      await replaceCourseLessons(
+        activeCourseId,
+        lessons.map((lesson, index) => ({
+          id: lesson.id,
+          title: lesson.title,
+          video_url: lesson.video_url,
+          content_md: lesson.content_md,
+          duration_sec: 900,
+          xp_reward: 40,
+          order_index: index,
+        })),
+      );
     },
     onSuccess: () => {
       setIsModalOpen(false);
@@ -152,8 +141,8 @@ export default function AdminCourseManager() {
       setDifficulty(cData.difficulty || "beginner"); setPublish(cData.is_published || false);
     }
 
-    const lessonsSnap = await getDocs(collection(db, 'lessons'));
-    const lData = lessonsSnap.docs.map(d => ({id: d.id, ...d.data()} as any))
+    const lessonsSnap = await getAllLessons();
+    const lData = lessonsSnap.map((lesson) => ({ id: lesson.id, ...lesson } as any))
       .filter((l: any) => l.course_id === courseId)
       .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
     
