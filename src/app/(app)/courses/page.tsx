@@ -6,7 +6,8 @@ import { Search } from "lucide-react";
 import { TiltCard } from "@/components/ui/TiltCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StaggerList } from "@/components/ui/StaggerList";
-import { createClient } from "@/lib/supabase/client";
+import { auth, db } from "@/lib/firebase/config";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import Link from "next/link";
 
 const filters = ["All", "In Progress", "Completed", "Recommended"];
@@ -19,20 +20,21 @@ export default function CoursesPage() {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const supabase = createClient();
-      const { data: authData } = await supabase.auth.getUser();
+      const user = auth.currentUser;
       
-      const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
+      const coursesSnap = await getDocs(collection(db, 'courses'));
+      const cData = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cData.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       
       let pData: any[] = [];
-      if (authData?.user) {
-        const { data } = await supabase.from('course_progress').select('*').eq('user_id', authData.user.id);
-        if (data) pData = data;
+      if (user) {
+        const progressSnap = await getDocs(query(collection(db, 'progress'), where('user_id', '==', user.uid)));
+        pData = progressSnap.docs.map(d => d.data());
       }
       const completedIds = new Set(pData.filter(p => p.completed).map(p => p.course_id));
 
       if (cData && cData.length > 0) {
-        const formatted = cData.map((c, idx) => ({
+        const formatted = cData.map((c: any, idx) => ({
             id: c.id,
             title: c.title,
             instructor: "Platform Expert",

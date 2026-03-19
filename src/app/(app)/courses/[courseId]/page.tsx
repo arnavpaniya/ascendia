@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc, collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
@@ -13,7 +14,6 @@ import { useGamification } from "@/hooks/useGamification";
 export default function CourseOverview() {
   const { courseId } = useParams();
   const router = useRouter();
-  const supabase = createClient();
   const { profile } = useAuthStore();
   const { fireConfetti } = useGamification();
 
@@ -21,10 +21,18 @@ export default function CourseOverview() {
     queryKey: ['course', courseId],
     enabled: !!courseId && !!profile?.id,
     queryFn: async () => {
-      const { data: course } = await supabase.from('courses').select('*').eq('id', courseId).single();
-      const { data: lessons } = await supabase.from('lessons').select('*').eq('course_id', courseId).order('order_index', { ascending: true });
-      const { data: enrollment } = await supabase.from('enrollments').select('*').eq('course_id', courseId).eq('user_id', profile!.id).maybeSingle();
-      const { data: progress } = await supabase.from('progress').select('*').eq('course_id', courseId).eq('user_id', profile!.id);
+      const courseSnap = await getDoc(doc(db, 'courses', courseId as string));
+      const course = courseSnap.exists() ? { id: courseSnap.id, ...courseSnap.data() } : null;
+      
+      const lessonsSnap = await getDocs(query(collection(db, 'lessons'), where('course_id', '==', courseId)));
+      const lessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      lessons.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
+
+      const enrollmentsSnap = await getDocs(query(collection(db, 'enrollments'), where('course_id', '==', courseId), where('user_id', '==', profile!.id)));
+      const enrollment = enrollmentsSnap.empty ? null : { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() };
+
+      const progressSnap = await getDocs(query(collection(db, 'progress'), where('course_id', '==', courseId), where('user_id', '==', profile!.id)));
+      const progress = progressSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
       return {
         course,
@@ -37,11 +45,10 @@ export default function CourseOverview() {
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('enrollments').insert({
+      await addDoc(collection(db, 'enrollments'), {
         user_id: profile!.id,
         course_id: courseId as string
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       fireConfetti();
@@ -52,7 +59,7 @@ export default function CourseOverview() {
   if (isLoading || !courseData) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#7c6df0]" /></div>;
 
   const { course, lessons, enrollment, progress } = courseData;
-  const completedIds = new Set(progress.filter(p => p.completed).map(p => p.lesson_id));
+  const completedIds = new Set(progress.filter((p: any) => p.completed).map((p: any) => p.lesson_id));
   const progressPercent = lessons.length > 0 ? Math.round((completedIds.size / lessons.length) * 100) : 0;
   
   // Find the first uncompleted lesson, or default to the first
@@ -66,16 +73,16 @@ export default function CourseOverview() {
 
       {/* Hero Banner */}
       <div className="relative h-[300px] md:h-[400px] rounded-[2rem] overflow-hidden group border border-white/5 bg-[#0f1018]">
-        <img src={course?.thumbnail_url || `https://images.unsplash.com/photo-1611974789855?w=1000&q=80`} alt={course?.title} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+        <img src={(course as any)?.thumbnail_url || `https://images.unsplash.com/photo-1611974789855?w=1000&q=80`} alt={(course as any)?.title} className="absolute inset-0 w-full h-full object-cover opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#07080f] via-[#07080f]/80 to-transparent" />
         
         <div className="absolute inset-0 p-8 md:p-12 flex flex-col justify-end">
           <div className="flex gap-2 mb-4">
-            <span className="bg-[#7c6df0]/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{course?.category || 'General'}</span>
-            <span className="bg-[#38bdf8]/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{course?.difficulty}</span>
+            <span className="bg-[#7c6df0]/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{(course as any)?.category || 'General'}</span>
+            <span className="bg-[#38bdf8]/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{(course as any)?.difficulty}</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-syne font-bold mb-4">{course?.title}</h1>
-          <p className="max-w-2xl text-white/70 text-lg mb-8 line-clamp-2">{course?.description}</p>
+          <h1 className="text-4xl md:text-5xl font-syne font-bold mb-4">{(course as any)?.title}</h1>
+          <p className="max-w-2xl text-white/70 text-lg mb-8 line-clamp-2">{(course as any)?.description}</p>
           
           <div className="flex items-center gap-6">
             {!enrollment ? (
@@ -128,9 +135,9 @@ export default function CourseOverview() {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className={`font-semibold truncate ${isCompleted ? 'text-white' : 'text-white/80'}`}>{lesson.title}</h3>
+                  <h3 className={`font-semibold truncate ${isCompleted ? 'text-white' : 'text-white/80'}`}>{(lesson as any).title}</h3>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-white/40 flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.floor(lesson.duration_sec / 60)} min</span>
+                    <span className="text-xs text-white/40 flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.floor((lesson as any).duration_sec / 60)} min</span>
                     {isCompleted && <span className="text-xs text-[#34d399] flex items-center gap-1 font-medium"><CheckCircle className="w-3 h-3" /> Completed</span>}
                   </div>
                 </div>

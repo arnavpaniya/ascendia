@@ -9,7 +9,8 @@ import { Users, TrendingUp, Award, BookOpen, Clock, Edit, Trash2 } from "lucide-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { db, auth } from "@/lib/firebase/config";
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 
 // Dummy Data
 const revenueData = [
@@ -47,16 +48,17 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({ id: '', title: '', description: '', video_url: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   const fetchData = async () => {
     // Fetch courses
-    const { data: cData } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
-    if (cData) setCourses(cData);
+    const coursesSnap = await getDocs(collection(db, 'courses'));
+    const cData = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    cData.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    setCourses(cData);
     
     // Count exact total users
-    const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
-    setTotalUsers(count || 0);
+    const usersSnap = await getDocs(collection(db, 'users'));
+    setTotalUsers(usersSnap.size);
     setLoading(false);
   };
 
@@ -68,21 +70,23 @@ export default function AdminDashboard() {
   const saveCourse = async (e: any) => {
     e.preventDefault();
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = auth.currentUser;
 
     if (isEditing && formData.id) {
-      await supabase.from('courses').update({ 
+      await updateDoc(doc(db, 'courses', formData.id), { 
         title: formData.title, 
         description: formData.description, 
         video_url: formData.video_url 
-      }).eq('id', formData.id);
+      });
     } else {
-      await supabase.from('courses').insert([{ 
+      const newRef = doc(collection(db, 'courses'));
+      await setDoc(newRef, { 
         title: formData.title, 
         description: formData.description, 
         video_url: formData.video_url, 
-        created_by: user?.id 
-      }]);
+        created_by: user?.uid,
+        created_at: new Date().toISOString()
+      });
     }
     setFormData({ id: '', title: '', description: '', video_url: '' });
     setIsEditing(false);
@@ -97,7 +101,7 @@ export default function AdminDashboard() {
   const deleteCourse = async (id: string) => {
     if (!confirm("Are you sure you want to delete this course?")) return;
     setLoading(true);
-    await supabase.from('courses').delete().eq('id', id);
+    await deleteDoc(doc(db, 'courses', id));
     fetchData();
   };
 

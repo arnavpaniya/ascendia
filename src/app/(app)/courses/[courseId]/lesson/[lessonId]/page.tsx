@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { useGamification } from "@/hooks/useGamification";
@@ -19,7 +20,6 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 export default function CoursePlayer() {
   const { courseId, lessonId } = useParams();
   const router = useRouter();
-  const supabase = createClient();
   const { profile } = useAuthStore();
   const { fireConfetti } = useGamification();
 
@@ -30,12 +30,18 @@ export default function CoursePlayer() {
     queryKey: ['lesson-player', courseId, lessonId],
     enabled: !!courseId && !!lessonId && !!profile?.id,
     queryFn: async () => {
-      const { data: course } = await supabase.from('courses').select('title, description').eq('id', courseId).single();
-      const { data: lessons } = await supabase.from('lessons').select('*').eq('course_id', courseId).order('order_index', { ascending: true });
-      const { data: progress } = await supabase.from('progress').select('*').eq('course_id', courseId).eq('user_id', profile!.id);
+      const courseSnap = await getDoc(doc(db, 'courses', courseId as string));
+      const course = courseSnap.exists() ? { id: courseSnap.id, ...courseSnap.data() } : null;
+      
+      const lessonsSnap = await getDocs(query(collection(db, 'lessons'), where('course_id', '==', courseId)));
+      const lessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      lessons.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
+      
+      const progressSnap = await getDocs(query(collection(db, 'progress'), where('course_id', '==', courseId), where('user_id', '==', profile!.id)));
+      const progress = progressSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
       const currentLesson = lessons?.find(l => l.id === lessonId);
-      const currentProgress = progress?.find(p => p.lesson_id === lessonId);
+      const currentProgress = progress?.find((p: any) => p.lesson_id === lessonId);
       
       return { course, lessons: lessons || [], progress: progress || [], currentLesson, currentProgress };
     }
@@ -45,20 +51,20 @@ export default function CoursePlayer() {
     mutationFn: async () => {
       if (!data?.currentLesson) return;
       
-      const { error } = await supabase.from('progress').upsert({
+      const progressId = `${profile!.id}_${lessonId}`;
+      await setDoc(doc(db, 'progress', progressId), {
         user_id: profile!.id,
         course_id: courseId as string,
         lesson_id: lessonId as string,
         completed: true,
         completed_at: new Date().toISOString()
-      }, { onConflict: 'user_id,lesson_id' });
-      
-      if (error) throw error;
+      }, { merge: true });
 
       // Award XP
-      await supabase.from('users').update({
-        xp: (profile?.xp || 0) + (data.currentLesson.xp_reward || XP_REWARDS.complete_lesson)
-      }).eq('id', profile!.id);
+      const userRef = doc(db, 'users', profile!.id);
+      await updateDoc(userRef, {
+        xp: (profile?.xp || 0) + ((data.currentLesson as any).xp_reward || XP_REWARDS.complete_lesson)
+      });
     },
     onSuccess: () => {
       fireConfetti();
@@ -79,7 +85,7 @@ export default function CoursePlayer() {
   if (isLoading || !data) return <div className="h-[80vh] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-[#7c6df0]" /></div>;
   if (!data.currentLesson) return <div className="text-center p-12 text-white/50">Lesson not found or missing access.</div>;
 
-  const completedSet = new Set(data.progress.filter(p => p.completed).map(p => p.lesson_id));
+  const completedSet = new Set(data.progress.filter((p: any) => p.completed).map((p: any) => p.lesson_id));
   const isCurrentlyCompleted = completedSet.has(data.currentLesson.id);
 
   const Player = ReactPlayer as any;
@@ -100,7 +106,7 @@ export default function CoursePlayer() {
         <div className="relative w-full aspect-video bg-black shrink-0 border-b border-white/5">
           <Player 
             ref={playerRef}
-            url={data.currentLesson.video_url} 
+            url={(data.currentLesson as any).video_url} 
             width="100%" 
             height="100%" 
             controls 
@@ -113,9 +119,9 @@ export default function CoursePlayer() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-white/5 pb-8">
             <div>
               <Link href={`/courses/${courseId}`} className="text-[#7c6df0] hover:text-[#6c63ff] font-medium text-sm flex items-center gap-2 mb-3">
-                 <ArrowLeft className="w-4 h-4" /> {data.course?.title}
+                 <ArrowLeft className="w-4 h-4" /> {(data.course as any)?.title}
               </Link>
-              <h1 className="text-3xl font-syne font-bold">{data.currentLesson.title}</h1>
+              <h1 className="text-3xl font-syne font-bold">{(data.currentLesson as any).title}</h1>
             </div>
             
             <div className="shrink-0 flex items-center gap-4 w-full md:w-auto">
@@ -137,7 +143,7 @@ export default function CoursePlayer() {
 
           <div className="prose prose-invert prose-p:text-white/70 prose-headings:font-syne prose-headings:text-white prose-a:text-[#38bdf8] max-w-none">
             <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
-              {data.currentLesson.content_md || data.currentLesson.description || "*No detailed markdown content found for this lesson.*"}
+              {(data.currentLesson as any).content_md || (data.currentLesson as any).description || "*No detailed markdown content found for this lesson.*"}
             </ReactMarkdown>
           </div>
         </div>
@@ -193,8 +199,8 @@ export default function CoursePlayer() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${active ? 'text-white' : completed ? 'text-white/70' : 'text-white/50'}`}>{l.title}</p>
-                      <p className="text-[10px] text-white/40 mt-1">{Math.floor((l.duration_sec || 0)/60)}m</p>
+                      <p className={`text-sm font-medium truncate ${active ? 'text-white' : completed ? 'text-white/70' : 'text-white/50'}`}>{(l as any).title}</p>
+                      <p className="text-[10px] text-white/40 mt-1">{Math.floor(((l as any).duration_sec || 0)/60)}m</p>
                     </div>
                   </div>
                 </Link>

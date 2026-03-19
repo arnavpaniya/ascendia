@@ -9,7 +9,8 @@ import { StaggerList } from "@/components/ui/StaggerList";
 import { useIntersectionReveal } from "@/hooks/useIntersectionReveal";
 import { BookOpen, Target, Clock, Zap, Sparkles, Flame, Trophy } from "lucide-react";
 import { OrbField } from "@/components/three/OrbField";
-import { createClient } from "@/lib/supabase/client";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/stores/auth.store";
 import { useQuery } from "@tanstack/react-query";
 import { calculateLevel } from "@/utils/xp.utils";
@@ -20,19 +21,23 @@ export default function StudentDashboard() {
   const { ref: timelineRef, isInView: timelineInView } = useIntersectionReveal();
   
   const { profile } = useAuthStore();
-  const supabase = createClient();
-
   const { data, isLoading } = useQuery({
     queryKey: ['student-dashboard-stats', profile?.id],
     enabled: !!profile?.id,
     queryFn: async () => {
       // Fetch all published courses
-      const { data: courses } = await supabase.from('courses').select('*').eq('is_published', true).order('created_at', { ascending: false });
+      const coursesSnap = await getDocs(query(collection(db, 'courses'), where('is_published', '==', true)));
+      const courses = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
       
       // Fetch user enrollments + progress
-      const { data: enrollments } = await supabase.from('enrollments').select('*').eq('user_id', profile!.id);
-      const { data: progress } = await supabase.from('progress').select('*').eq('user_id', profile!.id);
-      const { data: lessons } = await supabase.from('lessons').select('id, course_id');
+      const enrollmentsSnap = await getDocs(query(collection(db, 'enrollments'), where('user_id', '==', profile!.id)));
+      const enrollments = enrollmentsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+      
+      const progressSnap = await getDocs(query(collection(db, 'progress'), where('user_id', '==', profile!.id)));
+      const progress = progressSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+      
+      const lessonsSnap = await getDocs(collection(db, 'lessons'));
+      const lessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
 
       // Aggregate data
       const enrolledCourseIds = new Set(enrollments?.map(e => e.course_id));

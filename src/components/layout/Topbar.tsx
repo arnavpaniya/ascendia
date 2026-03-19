@@ -3,7 +3,8 @@
 import { Bell, LogOut, Settings, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { auth } from "@/lib/firebase/config";
+import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -11,7 +12,6 @@ export function Topbar() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
 
   // Close dropdown if clicked outside
   useEffect(() => {
@@ -25,7 +25,7 @@ export function Topbar() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut(auth);
     router.push("/login");
   };
 

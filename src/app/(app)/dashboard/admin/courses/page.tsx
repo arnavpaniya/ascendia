@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { auth, db } from "@/lib/firebase/config";
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Plus, Edit, Trash2, GripVertical, CheckCircle, Database } from "lucide-react";
@@ -35,7 +36,6 @@ function SortableLessonItem({ lesson, onEdit, onDelete }: { lesson: LessonLocal;
 }
 
 export default function AdminCourseManager() {
-  const supabase = createClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
 
@@ -56,8 +56,22 @@ export default function AdminCourseManager() {
   const { data: courses, isLoading, refetch } = useQuery({
     queryKey: ['admin-courses'],
     queryFn: async () => {
-      const { data } = await supabase.from('courses').select('*, lessons(count), enrollments(count)').order('created_at', { ascending: false });
-      return data || [];
+      const coursesSnap = await getDocs(collection(db, 'courses'));
+      const lessonsSnap = await getDocs(collection(db, 'lessons'));
+      const enrollsSnap = await getDocs(collection(db, 'enrollments'));
+      
+      const lessons = lessonsSnap.docs.map(d => ({id: d.id, ...d.data()} as any));
+      const enrolls = enrollsSnap.docs.map(d => d.data());
+
+      const data = coursesSnap.docs.map(d => {
+        const c = d.data() as any;
+        c.id = d.id;
+        c.lessons = [{ count: lessons.filter((l: any) => l.course_id === c.id).length }];
+        c.enrollments = [{ count: enrolls.filter((e: any) => e.course_id === c.id).length }];
+        return c;
+      });
+      data.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      return data;
     }
   });
 
@@ -67,31 +81,31 @@ export default function AdminCourseManager() {
 
       // 1. Upsert Course
       if (activeCourseId) {
-        await supabase.from('courses').update({ title, description, category, difficulty, is_published: publish }).eq('id', activeCourseId);
+        await updateDoc(doc(db, 'courses', activeCourseId), { title, description, category, difficulty, is_published: publish });
       } else {
-        const { data: newCourse } = await supabase.from('courses').insert({ title, description, category, difficulty, is_published: publish }).select('id').single();
-        if (!newCourse) throw new Error("Failed to create course");
-        activeCourseId = newCourse.id;
+        const newCourseRef = doc(collection(db, 'courses'));
+        await setDoc(newCourseRef, { title, description, category, difficulty, is_published: publish, created_at: new Date().toISOString() });
+        activeCourseId = newCourseRef.id;
       }
 
       // 2. Delete missing lessons
-      const { data: existingLessons } = await supabase.from('lessons').select('id').eq('course_id', activeCourseId);
-      const existingIds = new Set(existingLessons?.map(l => l.id) || []);
-      const newIds = new Set(lessons.filter(l => !l.id.startsWith('draft-')).map(l => l.id));
+      const lessonsSnap = await getDocs(collection(db, 'lessons'));
+      const existingLessons = lessonsSnap.docs.map(d => ({ id: d.id, ...d.data()} as any)).filter((l: any) => l.course_id === activeCourseId);
+      const existingIds = new Set(existingLessons.map((l: any) => l.id));
+      const newIds = new Set(lessons.filter((l: any) => !l.id.startsWith('draft-')).map((l: any) => l.id));
       
       for (const eid of existingIds) {
-        if (!newIds.has(eid)) await supabase.from('lessons').delete().eq('id', eid);
+        if (!newIds.has(eid as string)) await deleteDoc(doc(db, 'lessons', eid as string));
       }
 
       // 3. Upsert configured lessons sequentially to respect order_index
       for (let i = 0; i < lessons.length; i++) {
-        const l = lessons[i];
+        const l = lessons[i] as any;
         const payload = { course_id: activeCourseId, title: l.title, video_url: l.video_url, content_md: l.content_md, order_index: i };
-        
         if (l.id.startsWith('draft-')) {
-          await supabase.from('lessons').insert(payload);
+          await setDoc(doc(collection(db, 'lessons')), payload);
         } else {
-          await supabase.from('lessons').update(payload).eq('id', l.id);
+          await updateDoc(doc(db, 'lessons', l.id), payload);
         }
       }
     },
@@ -132,15 +146,19 @@ export default function AdminCourseManager() {
   const loadCourseForEditing = async (courseId: string) => {
     setEditingCourseId(courseId);
     
-    const { data: cData } = await supabase.from('courses').select('*').eq('id', courseId).single();
+    const cData = courses?.find((c: any) => c.id === courseId);
     if (cData) {
       setTitle(cData.title); setDescription(cData.description || ""); setCategory(cData.category || "Frontend");
       setDifficulty(cData.difficulty || "beginner"); setPublish(cData.is_published || false);
     }
 
-    const { data: lData } = await supabase.from('lessons').select('*').eq('course_id', courseId).order('order_index', { ascending: true });
+    const lessonsSnap = await getDocs(collection(db, 'lessons'));
+    const lData = lessonsSnap.docs.map(d => ({id: d.id, ...d.data()} as any))
+      .filter((l: any) => l.course_id === courseId)
+      .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
+    
     if (lData) {
-      setLessons(lData.map(l => ({ id: l.id, title: l.title, video_url: l.video_url || "", content_md: l.content_md || "" })));
+      setLessons(lData.map((l: any) => ({ id: l.id, title: l.title, video_url: l.video_url || "", content_md: l.content_md || "" })));
     }
     setIsModalOpen(true);
   };

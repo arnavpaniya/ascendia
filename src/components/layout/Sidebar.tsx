@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, BookOpen, ClipboardList, Trophy, Settings, LogOut } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { auth } from "@/lib/firebase/config";
+import { signOut } from "firebase/auth";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -23,10 +24,9 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut(auth);
     router.push("/login");
   };
 
@@ -49,7 +49,7 @@ export function Sidebar() {
           const isActive = pathname === item.href || (pathname !== "/" && item.href !== "/" && pathname.startsWith(item.href));
 
           return (
-            <Link
+             <Link
               key={item.name}
               href={item.href}
               className={cn(

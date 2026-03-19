@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { createClient } from '@/lib/supabase/client'
-import type { User } from '@supabase/supabase-js'
+import { auth, db } from '@/lib/firebase/config'
+import { onAuthStateChanged, signOut as firebaseSignOut, User as FirebaseUser } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 
 export interface UserProfile {
   id: string;
@@ -16,7 +17,7 @@ export interface UserProfile {
 }
 
 interface AuthStore {
-  user: User | null;
+  user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
   initialized: boolean;
@@ -27,8 +28,6 @@ interface AuthStore {
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => {
-  const supabase = createClient();
-  
   return {
     user: null,
     profile: null,
@@ -36,49 +35,51 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     initialized: false,
 
     initialize: async () => {
-      // Prevents re-running unnecessarily if already initialized successfully
       if (get().initialized) return;
       
       set({ loading: true });
       
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error || !session) {
-        set({ user: null, profile: null, loading: false, initialized: true });
-        return;
-      }
-
-      set({ user: session.user });
-      await get().fetchProfile(session.user.id);
-      
-      set({ loading: false, initialized: true });
-
-      // Subscribe to auth changes once
-      supabase.auth.onAuthStateChange(async (event, currentSession) => {
-        if (event === 'SIGNED_OUT' || !currentSession) {
-          set({ user: null, profile: null });
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          set({ user: currentSession.user });
-          await get().fetchProfile(currentSession.user.id);
+      onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          set({ user: firebaseUser });
+          await get().fetchProfile(firebaseUser.uid);
+          set({ loading: false, initialized: true });
+        } else {
+          set({ user: null, profile: null, loading: false, initialized: true });
         }
       });
     },
 
     signOut: async () => {
       set({ loading: true });
-      await supabase.auth.signOut();
+      await firebaseSignOut(auth);
       set({ user: null, profile: null, loading: false });
     },
 
     fetchProfile: async (userId: string) => {
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      try {
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
         
-      if (!error && profile) {
-        set({ profile: profile as UserProfile });
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          set({ 
+            profile: { 
+              id: userId,
+              email: data.email,
+              full_name: data.full_name,
+              avatar_url: data.avatar_url,
+              role: data.role,
+              xp: data.xp || 0,
+              level: data.level || 1,
+              streak_days: data.streak_days || 0,
+              last_active: data.last_active,
+              created_at: data.createdAt || data.created_at
+            } as UserProfile 
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
       }
     }
   }

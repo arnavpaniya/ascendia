@@ -2,28 +2,37 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/firebase/config";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { Loader2, Search, Shield, User, MoreVertical, Edit } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function AdminUsersManager() {
-  const supabase = createClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
   const { data: users, isLoading, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      const { data } = await supabase.from('users').select('*, enrollments(count)').order('created_at', { ascending: false });
-      return data || [];
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const enrollmentsSnap = await getDocs(collection(db, 'enrollments'));
+      const enrolls = enrollmentsSnap.docs.map(d => d.data());
+      
+      const data = usersSnap.docs.map(d => {
+         const user = d.data();
+         user.id = d.id;
+         user.enrollments = [{ count: enrolls.filter(e => e.user_id === user.id).length }];
+         return user;
+      });
+      data.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      return data;
     }
   });
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
-      const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);
-      if (error) throw error;
+      await updateDoc(doc(db, 'users', userId), { role: newRole });
     },
     onSuccess: () => refetch()
   });
