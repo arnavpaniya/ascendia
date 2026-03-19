@@ -1,32 +1,44 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAnalytics, isSupported } from "firebase/analytics";
+import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAbWaQIN0AYUcD8N2HDKYztn2Qj9olt9Jw",
-  authDomain: "ascendia-1b973.firebaseapp.com",
-  projectId: "ascendia-1b973",
-  storageBucket: "ascendia-1b973.firebasestorage.app",
-  messagingSenderId: "196937817324",
-  appId: "1:196937817324:web:99c6a9c7dd073fdfd9d9c9",
-  measurementId: "G-FYNDG5P6ET"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase once
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const missingConfigKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingConfigKeys.length > 0) {
+  throw new Error(
+    `Missing Firebase environment variables: ${missingConfigKeys.join(", ")}. ` +
+      "Add them to your local .env file before starting the app.",
+  );
+}
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
-// Initialize Analytics only if supported (browser environment)
-let analytics = null;
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
+let analytics: Analytics | null = null;
+
 if (typeof window !== "undefined") {
-    isSupported().then((supported) => {
-        if (supported) {
-            analytics = getAnalytics(app);
-        }
-    });
+  void isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  });
 }
 
 export { app, auth, db, analytics, googleProvider };

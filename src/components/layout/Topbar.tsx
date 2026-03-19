@@ -3,87 +3,95 @@
 import { Bell, LogOut, Settings, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-import { auth } from "@/lib/firebase/config";
-import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuthStore } from "@/stores/auth.store";
 
 export function Topbar() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { profile, signOut } = useAuthStore((state) => ({
+    profile: state.profile,
+    signOut: state.signOut,
+  }));
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await signOut();
     router.push("/login");
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-[#080b12]/80 border-b border-white/5 h-16 flex items-center justify-end px-6">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-end border-b border-white/5 bg-[#080b12]/80 px-6 backdrop-blur-xl">
       <div className="flex items-center gap-4">
-        <button className="relative p-2 rounded-full hover:bg-white/5 transition-colors outline-none focus:ring-2 focus:ring-white/10">
-          <Bell className="w-5 h-5 text-white/80" />
+        <button className="relative rounded-full p-2 outline-none transition-colors hover:bg-white/5 focus:ring-2 focus:ring-white/10">
+          <Bell className="h-5 w-5 text-white/80" />
           <motion.span
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute top-1 right-1.5 w-2 h-2 bg-[#f59e0b] rounded-full border-2 border-[#080b12]"
+            className="absolute right-1.5 top-1 h-2 w-2 rounded-full border-2 border-[#080b12] bg-[#f59e0b]"
           />
         </button>
 
         <div className="relative" ref={dropdownRef}>
-          <button 
+          <button
             onClick={() => setIsOpen(!isOpen)}
-            className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#6c63ff] to-[#38bdf8] p-[2px] cursor-pointer outline-none hover:ring-2 focus:ring-2 focus:ring-[#6c63ff]/80 transition-all"
+            className="h-9 w-9 cursor-pointer rounded-full bg-gradient-to-tr from-[#6c63ff] to-[#38bdf8] p-[2px] outline-none transition-all hover:ring-2 focus:ring-2 focus:ring-[#6c63ff]/80"
           >
-            <div className="w-full h-full rounded-full bg-[#0f172a] overflow-hidden">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=transparent" alt="Avatar" className="w-full h-full object-cover" />
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#0f172a] text-sm font-semibold text-white">
+              {(profile?.full_name || profile?.email || "A").charAt(0).toUpperCase()}
             </div>
           </button>
 
           <AnimatePresence>
-            {isOpen && (
+            {isOpen ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
                 transition={{ duration: 0.2 }}
-                className="absolute right-0 mt-3 w-48 bg-[#0f172a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1"
+                className="absolute right-0 mt-3 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#0f172a]/95 py-1 shadow-2xl backdrop-blur-2xl"
                 style={{ transformOrigin: "top right" }}
               >
-                <div className="px-4 py-3 border-b border-white/5 mb-1 bg-white/5">
-                  <p className="text-xs font-medium text-white/50 uppercase tracking-wider font-syne">Manage Account</p>
+                <div className="mb-1 border-b border-white/5 bg-white/5 px-4 py-3">
+                  <p className="font-syne text-xs font-medium uppercase tracking-wider text-white/50">Manage Account</p>
+                  {profile ? (
+                    <div className="mt-2">
+                      <p className="truncate text-sm font-semibold text-white">{profile.full_name || "Ascendia User"}</p>
+                      <p className="truncate text-xs text-white/50">{profile.email}</p>
+                    </div>
+                  ) : null}
                 </div>
-                
+
                 <div className="flex flex-col p-1">
-                  <Link href="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
-                    <User className="w-4 h-4" /> Profile
+                  <Link href="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white">
+                    <User className="h-4 w-4" /> Profile
                   </Link>
-                  <Link href="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
-                    <Settings className="w-4 h-4" /> Preferences
+                  <Link href="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white">
+                    <Settings className="h-4 w-4" /> Preferences
                   </Link>
-                  
-                  <div className="h-px bg-white/10 my-1 mx-2" />
-                  
-                  <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-500/80 hover:text-red-500 hover:bg-red-500/10 rounded-xl w-full text-left transition-colors">
-                    <LogOut className="w-4 h-4" /> Sign Out
+
+                  <div className="mx-2 my-1 h-px bg-white/10" />
+
+                  <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-500/80 transition-colors hover:bg-red-500/10 hover:text-red-500">
+                    <LogOut className="h-4 w-4" /> Sign Out
                   </button>
                 </div>
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
         </div>
-        
       </div>
     </header>
   );
