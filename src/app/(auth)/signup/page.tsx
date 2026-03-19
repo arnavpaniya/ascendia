@@ -3,16 +3,35 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
+import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Input } from '@/components/ui/input'
-import { Mail, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle, BookOpen, Presentation } from 'lucide-react'
+import { Mail, Lock, User as UserIcon, Loader2, AlertCircle, Eye, EyeOff, BookOpen, Presentation, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+  }
+}
+
+const itemVariants: Variants = {
+  hidden: { y: 20, opacity: 0, scale: 0.95 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { type: "spring", stiffness: 300, damping: 24 }
+  }
+}
+
 export default function SignupPage() {
-    const [name, setName] = useState('')
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
+    const [name, setName] = useState('Demo User')
+    const [email, setEmail] = useState('test.user.ascendia.1234@gmail.com')
+    const [password, setPassword] = useState('password123')
+    const [confirmPassword, setConfirmPassword] = useState('password123')
+    const [showPassword, setShowPassword] = useState(false)
     const [role, setRole] = useState<'student' | 'admin'>('student')
     const [error, setError] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -22,6 +41,12 @@ export default function SignupPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        
+        if (password !== confirmPassword) {
+            setError("Passwords do not match")
+            return
+        }
+
         setLoading(true)
         setError(null)
         setSuccessMessage(null)
@@ -54,52 +79,68 @@ export default function SignupPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="text-center">
-                <h2 className="text-2xl font-bold">Create Account</h2>
-                <p className="text-foreground/60 text-sm mt-1">Start your UPSC preparation today</p>
-            </div>
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+            <motion.div variants={itemVariants} className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-white tracking-tight">Create Account 🚀</h2>
+                <p className="text-white/60 text-sm font-medium">Start Learning Today</p>
+            </motion.div>
 
-            {error && (
-                <div className="p-3 text-sm bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" /> {error}
-                </div>
-            )}
+            <AnimatePresence>
+                {error && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                        exit={{ opacity: 0, height: 0, scale: 0.9 }}
+                        className="p-3 text-sm bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl flex items-center gap-2"
+                    >
+                        <AlertCircle className="w-4 h-4 shrink-0" /> <span className="flex-1">{error}</span>
+                    </motion.div>
+                )}
+                {successMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                        exit={{ opacity: 0, height: 0, scale: 0.9 }}
+                        className="p-3 text-sm bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl flex items-center gap-2 shadow-[0_0_15px_rgba(74,222,128,0.2)]"
+                    >
+                        <CheckCircle2 className="w-4 h-4 shrink-0" /> <span className="flex-1">{successMessage}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {successMessage && (
-                <div className="p-3 text-sm bg-green-500/10 border border-green-500/20 text-green-500 rounded-xl flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" /> {successMessage}
-                </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="flex gap-4">
-                   <button 
+            <motion.form variants={itemVariants} onSubmit={handleSubmit} className="space-y-4">
+                
+                <div className="flex gap-3">
+                   <motion.button 
+                     whileHover={{ scale: 1.02 }}
+                     whileTap={{ scale: 0.98 }}
                      type="button" 
                      onClick={() => setRole('student')}
-                     className={`flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${role === 'student' ? 'border-[#6c63ff] bg-[#6c63ff]/10 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}
+                     className={`flex-1 p-3 rounded-xl border flex items-center justify-center gap-2 transition-all duration-300 ${role === 'student' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
                    >
-                     <BookOpen className="w-6 h-6" />
-                     <span className="text-sm font-medium">Student</span>
-                   </button>
-                   <button 
+                     <BookOpen className="w-4 h-4" />
+                     <span className="text-sm font-semibold">Student</span>
+                   </motion.button>
+                   <motion.button 
+                     whileHover={{ scale: 1.02 }}
+                     whileTap={{ scale: 0.98 }}
                      type="button" 
                      onClick={() => setRole('admin')}
-                     className={`flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${role === 'admin' ? 'border-[#f59e0b] bg-[#f59e0b]/10 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}
+                     className={`flex-1 p-3 rounded-xl border flex items-center justify-center gap-2 transition-all duration-300 ${role === 'admin' ? 'border-purple-500 bg-purple-500/10 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80'}`}
                    >
-                     <Presentation className="w-6 h-6" />
-                     <span className="text-sm font-medium">Teacher</span>
-                   </button>
+                     <Presentation className="w-4 h-4" />
+                     <span className="text-sm font-semibold">Teacher</span>
+                   </motion.button>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium ml-1">Full Name</label>
-                    <div className="relative">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                <div className="space-y-1.5 flex flex-col">
+                    <label className="text-sm font-medium text-white/80 ml-1">Full Name</label>
+                    <div className="relative group">
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 transition-colors group-focus-within:text-indigo-400" />
                         <Input
                             type="text"
                             placeholder="Hero Scholar"
-                            className="pl-11"
+                            className="pl-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500/50 transition-all duration-300 shadow-inner"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
@@ -107,14 +148,14 @@ export default function SignupPage() {
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium ml-1">Email</label>
-                    <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                <div className="space-y-1.5 flex flex-col">
+                    <label className="text-sm font-medium text-white/80 ml-1">Email</label>
+                    <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 transition-colors group-focus-within:text-indigo-400" />
                         <Input
                             type="email"
                             placeholder="name@example.com"
-                            className="pl-11"
+                            className="pl-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500/50 transition-all duration-300 shadow-inner"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -122,47 +163,66 @@ export default function SignupPage() {
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium ml-1">Password</label>
-                    <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
-                        <Input
-                            type="password"
-                            placeholder="••••••••"
-                            className="pl-11"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5 flex flex-col">
+                        <label className="text-sm font-medium text-white/80 ml-1">Password</label>
+                        <div className="relative group">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 transition-colors group-focus-within:text-indigo-400" />
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                className="pl-9 pr-9 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500/50 transition-all duration-300 text-sm shadow-inner"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                            <button 
+                                type="button" 
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors focus:outline-none"
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                        <label className="text-sm font-medium text-white/80 ml-1">Confirm</label>
+                        <div className="relative group">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 transition-colors group-focus-within:text-indigo-400" />
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                className="pl-9 pr-2 bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500/50 transition-all duration-300 text-sm shadow-inner"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <Button
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="w-full h-12 text-base"
-                    variant="accent"
+                    className="w-full h-12 mt-2 text-base font-semibold text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_auto] hover:bg-right rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2 transition-all duration-500"
                     disabled={loading}
                 >
                     {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                        <>
-                            Sign Up <ArrowRight className="ml-2 w-4 h-4" />
-                        </>
+                        "Sign Up"
                     )}
-                </Button>
-            </form>
+                </motion.button>
+            </motion.form>
 
-            <div className="text-center text-sm">
-                <span className="text-foreground/60">Already have an account? </span>
-                <Link href="/login" className="text-primary font-semibold hover:underline">
+            <motion.div variants={itemVariants} className="text-center text-sm pt-2">
+                <span className="text-white/50">Already have an account? </span>
+                <Link href="/login" className="text-indigo-400 font-semibold hover:text-indigo-300 hover:drop-shadow-[0_0_8px_rgba(129,140,248,0.5)] transition-all duration-300">
                     Login
                 </Link>
-            </div>
-
-            <p className="text-[10px] text-center text-foreground/40 leading-tight">
-                By signing up, you agree to our Terms of Service and Privacy Policy.
-            </p>
-        </div>
+            </motion.div>
+        </motion.div>
     )
 }
