@@ -35,18 +35,6 @@ if (missingConfigKeys.length > 0) {
   );
 }
 
-if (typeof window !== "undefined") {
-  const missingEnvKeys = Object.entries(defaultFirebaseConfig)
-    .filter(([key]) => !process.env[`NEXT_PUBLIC_FIREBASE_${key.replace(/[A-Z]/g, (match) => `_${match}`).toUpperCase()}`])
-    .map(([key]) => key);
-
-  if (missingEnvKeys.length > 0) {
-    console.warn(
-      `Firebase env vars are missing for: ${missingEnvKeys.join(", ")}. Falling back to the bundled Ascendia Firebase config.`,
-    );
-  }
-}
-
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
