@@ -2,7 +2,7 @@
 
 Ascendia is a modern EdTech web app built with Next.js, Tailwind CSS, and Supabase for authentication and data services.
 
-Live site: https://ascendia-iota.vercel.app
+Live site: https://ascendia-five.vercel.app/
 
 ## Tech Stack
 
