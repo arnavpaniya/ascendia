@@ -15,6 +15,7 @@ export default function SignupPage() {
     const [password, setPassword] = useState('')
     const [role, setRole] = useState<'student' | 'admin'>('student')
     const [error, setError] = useState<string | null>(null)
+    const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const router = useRouter()
     const supabase = createClient()
@@ -23,8 +24,9 @@ export default function SignupPage() {
         e.preventDefault()
         setLoading(true)
         setError(null)
+        setSuccessMessage(null)
         
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -42,6 +44,11 @@ export default function SignupPage() {
             return
         }
 
+        if (!data.session) {
+            setSuccessMessage("Signup successful! Please check your email to verify your account.")
+            return
+        }
+
         router.push('/dashboard')
         router.refresh()
     }
@@ -56,6 +63,12 @@ export default function SignupPage() {
             {error && (
                 <div className="p-3 text-sm bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" /> {error}
+                </div>
+            )}
+
+            {successMessage && (
+                <div className="p-3 text-sm bg-green-500/10 border border-green-500/20 text-green-500 rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {successMessage}
                 </div>
             )}
 
